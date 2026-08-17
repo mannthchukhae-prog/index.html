@@ -20,57 +20,66 @@
 <div id="root"></div>
 
 <script type="text/babel" data-presets="react">
-const { useState, useEffect, useMemo } = React;
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useMemo = React.useMemo;
 
-// ===== Supabase connection =====
-// Set up via <script type="module"> above (window.__sb). Wait until it's ready.
-const STORAGE_KEY = 'vkus-i-tsvet-data';
+var STORAGE_KEY = 'vkus-i-tsvet-data';
 
-const waitForSupabase = () => new Promise((resolve) => {
-  const check = () => {
-    if (window.__sb) resolve(window.__sb);
-    else setTimeout(check, 30);
+function waitForSupabase() {
+  return new Promise(function (resolve) {
+    function check() {
+      if (window.__sb) { resolve(window.__sb); }
+      else { setTimeout(check, 30); }
+    }
+    check();
+  });
+}
+
+function loadRemoteData() {
+  return waitForSupabase().then(function (sb) {
+    return sb.from('app_data').select('value').eq('key', STORAGE_KEY).maybeSingle().then(function (res) {
+      if (res.error) { throw res.error; }
+      return res.data && res.data.value ? JSON.parse(res.data.value) : null;
+    });
+  });
+}
+
+function saveRemoteData(payload) {
+  return waitForSupabase().then(function (sb) {
+    return sb.from('app_data').upsert(
+      { key: STORAGE_KEY, value: JSON.stringify(payload) },
+      { onConflict: 'key' }
+    ).then(function (res) {
+      if (res.error) { throw res.error; }
+    });
+  });
+}
+
+var iconStub = function (emoji) {
+  return function (props) {
+    return React.createElement('span', { className: props.className, style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 } }, emoji);
   };
-  check();
-});
-
-async function loadRemoteData() {
-  const sb = await waitForSupabase();
-  const { data, error } = await sb.from('app_data').select('value').eq('key', STORAGE_KEY).maybeSingle();
-  if (error) throw error;
-  return data && data.value ? JSON.parse(data.value) : null;
+};
+var Users = iconStub('👥');
+var Calendar = iconStub('📅');
+var Trash2 = iconStub('🗑');
+var LogOut = iconStub('🚪');
+var Building2 = iconStub('🏨');
+var Sparkles = iconStub('✨');
+var ChevronLeft = iconStub('‹');
+var ChevronRight = iconStub('›');
+var Lock = iconStub('🔒');
+var Download = iconStub('⬇');
+var X = iconStub('✕');
+var UserPlus = iconStub('➕');
+function Loader2(props) {
+  return React.createElement('span', { className: (props.className || '') + ' inline-block animate-spin' }, '⏳');
 }
 
-async function saveRemoteData(payload) {
-  const sb = await waitForSupabase();
-  const { error } = await sb.from('app_data').upsert(
-    { key: STORAGE_KEY, value: JSON.stringify(payload) },
-    { onConflict: 'key' }
-  );
-  if (error) throw error;
-}
+var WEEKDAYS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 
-// ===== Icon stubs (replacing lucide-react, not available outside Claude) =====
-const iconStub = (emoji) => ({ className }) => (
-  <span className={className} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{emoji}</span>
-);
-const Users = iconStub('👥');
-const Calendar = iconStub('📅');
-const Trash2 = iconStub('🗑');
-const LogOut = iconStub('🚪');
-const Building2 = iconStub('🏨');
-const Sparkles = iconStub('✨');
-const ChevronLeft = iconStub('‹');
-const ChevronRight = iconStub('›');
-const Lock = iconStub('🔒');
-const Download = iconStub('⬇');
-const X = iconStub('✕');
-const UserPlus = iconStub('➕');
-const Loader2 = ({ className }) => <span className={(className || '') + ' inline-block animate-spin'}>⏳</span>;
-
-const WEEKDAYS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-
-const HOTELS = [
+var HOTELS = [
   { name: 'PALACE BRIDGE LOBBY', zamena: 1200, refresh: 500, zamenaDay: 2, refreshDay: 6, maxPerSlot: 2, manual: false },
   { name: 'PALACE BRIDGE REST', zamena: 1000, refresh: 600, zamenaDay: 2, refreshDay: 6, maxPerSlot: 2, manual: false },
   { name: 'PALACE BRIDGE REST TABLE', zamena: 500, refresh: null, zamenaDay: 2, refreshDay: null, maxPerSlot: 2, manual: false },
@@ -79,866 +88,1047 @@ const HOTELS = [
   { name: 'COSMOS IT', zamena: 1200, refresh: 500, zamenaDay: 3, refreshDay: 0, maxPerSlot: 2, manual: false },
   { name: 'COSMOS NEVSKY', zamena: 1200, refresh: 600, zamenaDay: null, refreshDay: null, maxPerSlot: 2, manual: true },
   { name: 'Renaissance St. Petersburg Baltic', zamena: 1000, refresh: null, zamenaDay: 2, refreshDay: null, maxPerSlot: 2, manual: false },
-  { name: 'ACADEMIA BRASSERI', zamena: 500, refresh: 200, zamenaDay: 4, refreshDay: 1, maxPerSlot: 2, manual: false },
+  { name: 'ACADEMIA BRASSERI', zamena: 500, refresh: 200, zamenaDay: 4, refreshDay: 1, maxPerSlot: 2, manual: false }
 ];
 
-const DEFAULT_FLORISTS = ['Женя', 'Юля', 'Маша', 'Аня', 'Глеб', 'Алина'];
-const DEFAULT_ADMIN_FLORIST = 'Глеб';
-const DEFAULT_SHIFT_RATE = 1000;
-const DEFAULT_ADMIN_SALARY = 60000;
-const MANAGER_BACKUP_PASSWORD = '164970';
-const DEFAULT_MANAGER_PASSWORD = '000000';
-const DEFAULT_FLORIST_PASSWORD = '111111';
+var DEFAULT_FLORISTS = ['Женя', 'Юля', 'Маша', 'Аня', 'Глеб', 'Алина'];
+var DEFAULT_ADMIN_FLORIST = 'Глеб';
+var DEFAULT_SHIFT_RATE = 1000;
+var DEFAULT_ADMIN_SALARY = 60000;
+var MANAGER_BACKUP_PASSWORD = '164970';
+var DEFAULT_MANAGER_PASSWORD = '000000';
+var DEFAULT_FLORIST_PASSWORD = '111111';
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
-const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+var monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
-const getWeekday = (dateStr) => {
-  const d = new Date(dateStr);
-  const wd = d.getDay();
+function getWeekday(dateStr) {
+  var d = new Date(dateStr);
+  var wd = d.getDay();
   return wd === 0 ? 6 : wd - 1;
-};
+}
 
-const submissionKey = (florist, month, year) => `${florist}::${year}::${month}`;
+function submissionKey(florist, month, year) { return florist + '::' + year + '::' + month; }
 
-const PetalBurst = ({ petals, show }) => {
+function PetalBurst(props) {
+  var petals = props.petals;
+  var show = props.show;
   if (!show) return null;
-  return (
-    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-      <style>{`
-        @keyframes petalFly {
-          0% { transform: translate(-50%, -50%) translate(0px, 0px) rotate(0deg) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.4); opacity: 0; }
-        }
-      `}</style>
-      {petals.map(p => (
-        <span
-          key={p.id}
-          style={{
-            position: 'absolute', top: '50%', left: '50%', fontSize: `${p.size}px`,
-            '--tx': `${p.tx}px`, '--ty': `${p.ty}px`, '--rot': `${p.rot}deg`,
-            animation: `petalFly ${p.duration}s ease-out ${p.delay}s forwards`,
-            willChange: 'transform, opacity',
-          }}
-        >🌸</span>
-      ))}
-    </div>
+  return React.createElement('div', { className: 'fixed inset-0 pointer-events-none z-50 overflow-hidden' },
+    React.createElement('style', null, '@keyframes petalFly { 0% { transform: translate(-50%, -50%) translate(0px, 0px) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.4); opacity: 0; } }'),
+    petals.map(function (p) {
+      var style = {
+        position: 'absolute', top: '50%', left: '50%', fontSize: p.size + 'px',
+        animation: 'petalFly ' + p.duration + 's ease-out ' + p.delay + 's forwards',
+        willChange: 'transform, opacity'
+      };
+      style['--tx'] = p.tx + 'px';
+      style['--ty'] = p.ty + 'px';
+      style['--rot'] = p.rot + 'deg';
+      return React.createElement('span', { key: p.id, style: style }, '🌸');
+    })
   );
-};
+}
 
-const emptyManualSlot = () => ({ id: crypto.randomUUID(), date: todayISO(), hotel: HOTELS.find(h => h.manual)?.name || HOTELS[0].name, visitType: 'zamena' });
-const emptyOnetime = (florists) => ({ id: crypto.randomUUID(), date: todayISO(), florist: florists[0] || '', projectName: '', rate: '' });
-const emptyExtraEarning = () => ({ id: crypto.randomUUID(), date: todayISO(), description: '', amount: '' });
+function emptyManualSlot() {
+  return { id: crypto.randomUUID(), date: todayISO(), hotel: (HOTELS.filter(function (h) { return h.manual; })[0] || HOTELS[0]).name, visitType: 'zamena' };
+}
+function emptyOnetime(florists) {
+  return { id: crypto.randomUUID(), date: todayISO(), florist: florists[0] || '', projectName: '', rate: '' };
+}
+function emptyExtraEarning() {
+  return { id: crypto.randomUUID(), date: todayISO(), description: '', amount: '' };
+}
+function buildShiftRates(list) {
+  var o = {};
+  list.forEach(function (f) { o[f] = DEFAULT_SHIFT_RATE; });
+  return o;
+}
+function buildPasswords(list) {
+  var o = { manager: DEFAULT_MANAGER_PASSWORD };
+  list.forEach(function (f) { o[f] = DEFAULT_FLORIST_PASSWORD; });
+  return o;
+}
 
-const buildShiftRates = (list) => { const o = {}; list.forEach(f => { o[f] = DEFAULT_SHIFT_RATE; }); return o; };
-const buildPasswords = (list) => { const o = { manager: DEFAULT_MANAGER_PASSWORD }; list.forEach(f => { o[f] = DEFAULT_FLORIST_PASSWORD; }); return o; };
+function renameFloristEverywhere(oldName, newName, state) {
+  var florists = state.florists, shiftRates = state.shiftRates, passwords = state.passwords,
+      workDays = state.workDays, bookings = state.bookings, onetimes = state.onetimes,
+      extraEarnings = state.extraEarnings, submissions = state.submissions,
+      adminFloristName = state.adminFloristName, filterFlorist = state.filterFlorist;
 
-const renameFloristEverywhere = (oldName, newName, state) => {
-  const { florists, shiftRates, passwords, workDays, bookings, onetimes, extraEarnings, submissions, adminFloristName, filterFlorist } = state;
-  const newFlorists = florists.map(f => (f === oldName ? newName : f));
-  const newShiftRates = { ...shiftRates };
-  if (oldName in newShiftRates) { newShiftRates[newName] = newShiftRates[oldName]; delete newShiftRates[oldName]; } else { newShiftRates[newName] = DEFAULT_SHIFT_RATE; }
-  const newPasswords = { ...passwords };
-  if (oldName in newPasswords) { newPasswords[newName] = newPasswords[oldName]; delete newPasswords[oldName]; } else { newPasswords[newName] = DEFAULT_FLORIST_PASSWORD; }
-  const newWorkDays = workDays.map(w => (w.florist === oldName ? { ...w, florist: newName } : w));
-  const newBookings = bookings.map(b => (b.florist === oldName ? { ...b, florist: newName } : b));
-  const newOnetimes = onetimes.map(o => (o.florist === oldName ? { ...o, florist: newName } : o));
-  const newExtraEarnings = extraEarnings.map(e => (e.florist === oldName ? { ...e, florist: newName } : e));
-  const newSubmissions = {};
-  Object.entries(submissions).forEach(([k, v]) => {
-    if (k.startsWith(oldName + '::')) newSubmissions[newName + k.slice(oldName.length)] = v; else newSubmissions[k] = v;
+  var newFlorists = florists.map(function (f) { return f === oldName ? newName : f; });
+
+  var newShiftRates = Object.assign({}, shiftRates);
+  if (oldName in newShiftRates) { newShiftRates[newName] = newShiftRates[oldName]; delete newShiftRates[oldName]; }
+  else { newShiftRates[newName] = DEFAULT_SHIFT_RATE; }
+
+  var newPasswords = Object.assign({}, passwords);
+  if (oldName in newPasswords) { newPasswords[newName] = newPasswords[oldName]; delete newPasswords[oldName]; }
+  else { newPasswords[newName] = DEFAULT_FLORIST_PASSWORD; }
+
+  var newWorkDays = workDays.map(function (w) { return w.florist === oldName ? Object.assign({}, w, { florist: newName }) : w; });
+  var newBookings = bookings.map(function (b) { return b.florist === oldName ? Object.assign({}, b, { florist: newName }) : b; });
+  var newOnetimes = onetimes.map(function (o) { return o.florist === oldName ? Object.assign({}, o, { florist: newName }) : o; });
+  var newExtraEarnings = extraEarnings.map(function (e) { return e.florist === oldName ? Object.assign({}, e, { florist: newName }) : e; });
+
+  var newSubmissions = {};
+  Object.keys(submissions).forEach(function (k) {
+    if (k.indexOf(oldName + '::') === 0) { newSubmissions[newName + k.slice(oldName.length)] = submissions[k]; }
+    else { newSubmissions[k] = submissions[k]; }
   });
-  const newAdminFloristName = adminFloristName === oldName ? newName : adminFloristName;
-  const newFilterFlorist = filterFlorist === oldName ? newName : filterFlorist;
-  return { florists: newFlorists, shiftRates: newShiftRates, passwords: newPasswords, workDays: newWorkDays, bookings: newBookings, onetimes: newOnetimes, extraEarnings: newExtraEarnings, submissions: newSubmissions, adminFloristName: newAdminFloristName, filterFlorist: newFilterFlorist };
-};
 
-const PayrollApp = () => {
-  const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [loadError, setLoadError] = useState('');
-  const [showBurst, setShowBurst] = useState(true);
+  var newAdminFloristName = adminFloristName === oldName ? newName : adminFloristName;
+  var newFilterFlorist = filterFlorist === oldName ? newName : filterFlorist;
 
-  const petals = useMemo(() => Array.from({ length: 180 }, (_, i) => {
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 250 + Math.random() * 650;
-    return { id: i, tx: Math.cos(angle) * distance, ty: Math.sin(angle) * distance, rot: (Math.random() - 0.5) * 900, size: 14 + Math.random() * 20, duration: 1.1 + Math.random() * 1.4, delay: Math.random() * 0.25 };
-  }), []);
+  return {
+    florists: newFlorists, shiftRates: newShiftRates, passwords: newPasswords,
+    workDays: newWorkDays, bookings: newBookings, onetimes: newOnetimes,
+    extraEarnings: newExtraEarnings, submissions: newSubmissions,
+    adminFloristName: newAdminFloristName, filterFlorist: newFilterFlorist
+  };
+}
 
-  useEffect(() => { const t = setTimeout(() => setShowBurst(false), 2600); return () => clearTimeout(t); }, []);
+function PayrollApp() {
+  var loadedState = useState(false); var loaded = loadedState[0]; var setLoaded = loadedState[1];
+  var savingState = useState(false); var saving = savingState[0]; var setSaving = savingState[1];
+  var showBurstState = useState(true); var showBurst = showBurstState[0]; var setShowBurst = showBurstState[1];
 
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loginTarget, setLoginTarget] = useState(null);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [showPasswordSettings, setShowPasswordSettings] = useState(false);
-  const [newPasswordDrafts, setNewPasswordDrafts] = useState({});
-
-  const [florists, setFlorists] = useState(DEFAULT_FLORISTS);
-  const [adminFloristName, setAdminFloristName] = useState(DEFAULT_ADMIN_FLORIST);
-  const [adminSalary, setAdminSalary] = useState(DEFAULT_ADMIN_SALARY);
-  const [renameDrafts, setRenameDrafts] = useState({});
-  const [newFloristName, setNewFloristName] = useState('');
-
-  const [workDays, setWorkDays] = useState([]);
-  const [shiftRates, setShiftRates] = useState(() => buildShiftRates(DEFAULT_FLORISTS));
-  const [passwords, setPasswords] = useState(() => buildPasswords(DEFAULT_FLORISTS));
-  const [bookings, setBookings] = useState([]);
-  const [onetimes, setOnetimes] = useState([]);
-  const [manualSlots, setManualSlots] = useState([]);
-  const [submissions, setSubmissions] = useState({});
-  const [noteDrafts, setNoteDrafts] = useState({});
-  const [extraEarnings, setExtraEarnings] = useState([]);
-  const [showExtraEarningForm, setShowExtraEarningForm] = useState(false);
-  const [newExtraEarning, setNewExtraEarning] = useState(emptyExtraEarning);
-
-  const [viewMonth, setViewMonth] = useState(new Date().getMonth());
-  const [viewYear, setViewYear] = useState(new Date().getFullYear());
-  const [filterFlorist, setFilterFlorist] = useState('all');
-  const [showManualSlotForm, setShowManualSlotForm] = useState(false);
-  const [newManualSlot, setNewManualSlot] = useState(emptyManualSlot);
-  const [showOnetimeForm, setShowOnetimeForm] = useState(false);
-  const [newOnetime, setNewOnetime] = useState(() => emptyOnetime(DEFAULT_FLORISTS));
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await loadRemoteData();
-        if (!cancelled && data) {
-          const loadedFlorists = data.florists || DEFAULT_FLORISTS;
-          setFlorists(loadedFlorists);
-          setAdminFloristName(data.adminFloristName || DEFAULT_ADMIN_FLORIST);
-          setAdminSalary(data.adminSalary ?? DEFAULT_ADMIN_SALARY);
-          setWorkDays(data.workDays || []);
-          setShiftRates(data.shiftRates || buildShiftRates(loadedFlorists));
-          setPasswords(data.passwords || buildPasswords(loadedFlorists));
-          setBookings(data.bookings || []);
-          setOnetimes(data.onetimes || []);
-          setManualSlots(data.manualSlots || []);
-          setSubmissions(data.submissions || {});
-          setExtraEarnings(data.extraEarnings || []);
-        }
-      } catch (err) {
-        console.error('Load error:', err);
-        if (!cancelled) setLoadError('Не удалось подключиться к базе данных. Проверьте настройки Supabase (таблица app_data, отключён RLS).');
-      } finally {
-        if (!cancelled) setLoaded(true);
-      }
-    })();
-    return () => { cancelled = true; };
+  var petals = useMemo(function () {
+    var arr = [];
+    for (var i = 0; i < 180; i++) {
+      var angle = Math.random() * Math.PI * 2;
+      var distance = 250 + Math.random() * 650;
+      arr.push({
+        id: i, tx: Math.cos(angle) * distance, ty: Math.sin(angle) * distance,
+        rot: (Math.random() - 0.5) * 900, size: 14 + Math.random() * 20,
+        duration: 1.1 + Math.random() * 1.4, delay: Math.random() * 0.25
+      });
+    }
+    return arr;
   }, []);
 
-  useEffect(() => {
+  useEffect(function () {
+    var t = setTimeout(function () { setShowBurst(false); }, 2600);
+    return function () { clearTimeout(t); };
+  }, []);
+
+  var currentUserState = useState(null); var currentUser = currentUserState[0]; var setCurrentUser = currentUserState[1];
+  var loginTargetState = useState(null); var loginTarget = loginTargetState[0]; var setLoginTarget = loginTargetState[1];
+  var passwordInputState = useState(''); var passwordInput = passwordInputState[0]; var setPasswordInput = passwordInputState[1];
+  var loginErrorState = useState(''); var loginError = loginErrorState[0]; var setLoginError = loginErrorState[1];
+  var showPasswordSettingsState = useState(false); var showPasswordSettings = showPasswordSettingsState[0]; var setShowPasswordSettings = showPasswordSettingsState[1];
+  var newPasswordDraftsState = useState({}); var newPasswordDrafts = newPasswordDraftsState[0]; var setNewPasswordDrafts = newPasswordDraftsState[1];
+
+  var floristsState = useState(DEFAULT_FLORISTS); var florists = floristsState[0]; var setFlorists = floristsState[1];
+  var adminFloristNameState = useState(DEFAULT_ADMIN_FLORIST); var adminFloristName = adminFloristNameState[0]; var setAdminFloristName = adminFloristNameState[1];
+  var adminSalaryState = useState(DEFAULT_ADMIN_SALARY); var adminSalary = adminSalaryState[0]; var setAdminSalary = adminSalaryState[1];
+  var renameDraftsState = useState({}); var renameDrafts = renameDraftsState[0]; var setRenameDrafts = renameDraftsState[1];
+  var newFloristNameState = useState(''); var newFloristName = newFloristNameState[0]; var setNewFloristName = newFloristNameState[1];
+
+  var workDaysState = useState([]); var workDays = workDaysState[0]; var setWorkDays = workDaysState[1];
+  var shiftRatesState = useState(function () { return buildShiftRates(DEFAULT_FLORISTS); }); var shiftRates = shiftRatesState[0]; var setShiftRates = shiftRatesState[1];
+  var passwordsState = useState(function () { return buildPasswords(DEFAULT_FLORISTS); }); var passwords = passwordsState[0]; var setPasswords = passwordsState[1];
+  var bookingsState = useState([]); var bookings = bookingsState[0]; var setBookings = bookingsState[1];
+  var onetimesState = useState([]); var onetimes = onetimesState[0]; var setOnetimes = onetimesState[1];
+  var manualSlotsState = useState([]); var manualSlots = manualSlotsState[0]; var setManualSlots = manualSlotsState[1];
+  var submissionsState = useState({}); var submissions = submissionsState[0]; var setSubmissions = submissionsState[1];
+  var noteDraftsState = useState({}); var noteDrafts = noteDraftsState[0]; var setNoteDrafts = noteDraftsState[1];
+  var extraEarningsState = useState([]); var extraEarnings = extraEarningsState[0]; var setExtraEarnings = extraEarningsState[1];
+  var showExtraEarningFormState = useState(false); var showExtraEarningForm = showExtraEarningFormState[0]; var setShowExtraEarningForm = showExtraEarningFormState[1];
+  var newExtraEarningState = useState(emptyExtraEarning); var newExtraEarning = newExtraEarningState[0]; var setNewExtraEarning = newExtraEarningState[1];
+
+  var viewMonthState = useState(new Date().getMonth()); var viewMonth = viewMonthState[0]; var setViewMonth = viewMonthState[1];
+  var viewYearState = useState(new Date().getFullYear()); var viewYear = viewYearState[0]; var setViewYear = viewYearState[1];
+  var filterFloristState = useState('all'); var filterFlorist = filterFloristState[0]; var setFilterFlorist = filterFloristState[1];
+  var showManualSlotFormState = useState(false); var showManualSlotForm = showManualSlotFormState[0]; var setShowManualSlotForm = showManualSlotFormState[1];
+  var newManualSlotState = useState(emptyManualSlot); var newManualSlot = newManualSlotState[0]; var setNewManualSlot = newManualSlotState[1];
+  var showOnetimeFormState = useState(false); var showOnetimeForm = showOnetimeFormState[0]; var setShowOnetimeForm = showOnetimeFormState[1];
+  var newOnetimeState = useState(function () { return emptyOnetime(DEFAULT_FLORISTS); }); var newOnetime = newOnetimeState[0]; var setNewOnetime = newOnetimeState[1];
+
+  useEffect(function () {
+    var cancelled = false;
+    loadRemoteData().then(function (data) {
+      if (!cancelled && data) {
+        var loadedFlorists = data.florists || DEFAULT_FLORISTS;
+        setFlorists(loadedFlorists);
+        setAdminFloristName(data.adminFloristName || DEFAULT_ADMIN_FLORIST);
+        setAdminSalary(data.adminSalary != null ? data.adminSalary : DEFAULT_ADMIN_SALARY);
+        setWorkDays(data.workDays || []);
+        setShiftRates(data.shiftRates || buildShiftRates(loadedFlorists));
+        setPasswords(data.passwords || buildPasswords(loadedFlorists));
+        setBookings(data.bookings || []);
+        setOnetimes(data.onetimes || []);
+        setManualSlots(data.manualSlots || []);
+        setSubmissions(data.submissions || {});
+        setExtraEarnings(data.extraEarnings || []);
+      }
+    }).catch(function (err) {
+      console.error('Load error:', err);
+    }).then(function () {
+      if (!cancelled) setLoaded(true);
+    });
+    return function () { cancelled = true; };
+  }, []);
+
+  useEffect(function () {
     if (!loaded) return;
     setSaving(true);
-    const payload = { florists, adminFloristName, adminSalary, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, submissions, extraEarnings };
-    const timeout = setTimeout(async () => {
-      try {
-        await saveRemoteData(payload);
-      } catch (err) {
+    var payload = { florists: florists, adminFloristName: adminFloristName, adminSalary: adminSalary, workDays: workDays, shiftRates: shiftRates, passwords: passwords, bookings: bookings, onetimes: onetimes, manualSlots: manualSlots, submissions: submissions, extraEarnings: extraEarnings };
+    var timeout = setTimeout(function () {
+      saveRemoteData(payload).catch(function (err) {
         console.error('Save error:', err);
-      } finally {
+      }).then(function () {
         setSaving(false);
-      }
+      });
     }, 500);
-    return () => clearTimeout(timeout);
+    return function () { clearTimeout(timeout); };
   }, [florists, adminFloristName, adminSalary, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, submissions, extraEarnings, loaded]);
 
-  const getRate = (hotelName, visitType) => {
-    const hotel = HOTELS.find(h => h.name === hotelName);
+  function getRate(hotelName, visitType) {
+    var hotel = HOTELS.filter(function (h) { return h.name === hotelName; })[0];
     if (!hotel) return 0;
     return visitType === 'zamena' ? hotel.zamena : (hotel.refresh || 0);
-  };
+  }
 
-  const availableSlots = useMemo(() => {
-    const slots = [];
-    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-    HOTELS.forEach(hotel => {
+  var availableSlots = useMemo(function () {
+    var slots = [];
+    var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    HOTELS.forEach(function (hotel) {
       if (hotel.manual) return;
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const wd = getWeekday(dateStr);
+      for (var d = 1; d <= daysInMonth; d++) {
+        var dateStr = viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        var wd = getWeekday(dateStr);
         if (hotel.zamenaDay === wd) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'zamena', maxPerSlot: hotel.maxPerSlot });
         if (hotel.refreshDay === wd) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'refresh', maxPerSlot: hotel.maxPerSlot });
       }
     });
-    manualSlots.filter(ms => { const d = new Date(ms.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }).forEach(ms => {
-      const hotel = HOTELS.find(h => h.name === ms.hotel);
-      slots.push({ date: ms.date, hotel: ms.hotel, visitType: ms.visitType, maxPerSlot: hotel?.maxPerSlot || 2 });
+    manualSlots.filter(function (ms) { var d = new Date(ms.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }).forEach(function (ms) {
+      var hotel = HOTELS.filter(function (h) { return h.name === ms.hotel; })[0];
+      slots.push({ date: ms.date, hotel: ms.hotel, visitType: ms.visitType, maxPerSlot: hotel ? hotel.maxPerSlot : 2 });
     });
-    return slots.sort((a, b) => a.date.localeCompare(b.date));
+    return slots.sort(function (a, b) { return a.date.localeCompare(b.date); });
   }, [viewMonth, viewYear, manualSlots]);
 
-  const slotBookings = (date, hotel, visitType) => bookings.filter(b => b.date === date && b.hotel === hotel && b.visitType === visitType);
+  function slotBookings(date, hotel, visitType) {
+    return bookings.filter(function (b) { return b.date === date && b.hotel === hotel && b.visitType === visitType; });
+  }
 
-  const toggleBooking = (slot, florist) => {
-    const existing = bookings.find(b => b.date === slot.date && b.hotel === slot.hotel && b.visitType === slot.visitType && b.florist === florist);
-    if (existing) { setBookings(bookings.filter(b => b.id !== existing.id)); return; }
-    const current = slotBookings(slot.date, slot.hotel, slot.visitType);
+  function toggleBooking(slot, florist) {
+    var existing = bookings.filter(function (b) { return b.date === slot.date && b.hotel === slot.hotel && b.visitType === slot.visitType && b.florist === florist; })[0];
+    if (existing) { setBookings(bookings.filter(function (b) { return b.id !== existing.id; })); return; }
+    var current = slotBookings(slot.date, slot.hotel, slot.visitType);
     if (current.length >= slot.maxPerSlot) return;
-    setBookings([...bookings, { id: crypto.randomUUID(), date: slot.date, hotel: slot.hotel, visitType: slot.visitType, florist }]);
-  };
+    setBookings(bookings.concat([{ id: crypto.randomUUID(), date: slot.date, hotel: slot.hotel, visitType: slot.visitType, florist: florist }]));
+  }
 
-  const toggleWorkDay = (florist, date) => {
-    const existing = workDays.find(w => w.florist === florist && w.date === date);
-    if (existing) { setWorkDays(workDays.filter(w => w.id !== existing.id)); setBookings(bookings.filter(b => !(b.florist === florist && b.date === date))); return; }
-    setWorkDays([...workDays, { id: crypto.randomUUID(), florist, date, percent: 100 }]);
-  };
+  function toggleWorkDay(florist, date) {
+    var existing = workDays.filter(function (w) { return w.florist === florist && w.date === date; })[0];
+    if (existing) {
+      setWorkDays(workDays.filter(function (w) { return w.id !== existing.id; }));
+      setBookings(bookings.filter(function (b) { return !(b.florist === florist && b.date === date); }));
+      return;
+    }
+    setWorkDays(workDays.concat([{ id: crypto.randomUUID(), florist: florist, date: date, percent: 100 }]));
+  }
 
-  const setWorkDayPercent = (florist, date, percent) => setWorkDays(workDays.map(w => (w.florist === florist && w.date === date) ? { ...w, percent } : w));
-  const isWorkDay = (florist, date) => workDays.some(w => w.florist === florist && w.date === date);
-  const removeBooking = (id) => setBookings(bookings.filter(b => b.id !== id));
+  function setWorkDayPercent(florist, date, percent) {
+    setWorkDays(workDays.map(function (w) { return (w.florist === florist && w.date === date) ? Object.assign({}, w, { percent: percent }) : w; }));
+  }
+  function isWorkDay(florist, date) { return workDays.some(function (w) { return w.florist === florist && w.date === date; }); }
+  function removeBooking(id) { setBookings(bookings.filter(function (b) { return b.id !== id; })); }
 
-  const addManualSlot = () => { setManualSlots([...manualSlots, { ...newManualSlot }]); setNewManualSlot(emptyManualSlot()); setShowManualSlotForm(false); };
-  const addOnetime = () => { setOnetimes([...onetimes, { ...newOnetime }]); setNewOnetime(emptyOnetime(florists)); setShowOnetimeForm(false); };
-  const removeOnetime = (id) => setOnetimes(onetimes.filter(o => o.id !== id));
-  const addExtraEarning = (florist) => { setExtraEarnings([...extraEarnings, { ...newExtraEarning, id: crypto.randomUUID(), florist }]); setNewExtraEarning(emptyExtraEarning()); setShowExtraEarningForm(false); };
-  const removeExtraEarning = (id) => setExtraEarnings(extraEarnings.filter(e => e.id !== id));
+  function addManualSlot() {
+    setManualSlots(manualSlots.concat([Object.assign({}, newManualSlot)]));
+    setNewManualSlot(emptyManualSlot());
+    setShowManualSlotForm(false);
+  }
+  function addOnetime() {
+    setOnetimes(onetimes.concat([Object.assign({}, newOnetime)]));
+    setNewOnetime(emptyOnetime(florists));
+    setShowOnetimeForm(false);
+  }
+  function removeOnetime(id) { setOnetimes(onetimes.filter(function (o) { return o.id !== id; })); }
+  function addExtraEarning(florist) {
+    setExtraEarnings(extraEarnings.concat([Object.assign({}, newExtraEarning, { id: crypto.randomUUID(), florist: florist })]));
+    setNewExtraEarning(emptyExtraEarning());
+    setShowExtraEarningForm(false);
+  }
+  function removeExtraEarning(id) { setExtraEarnings(extraEarnings.filter(function (e) { return e.id !== id; })); }
 
-  const submitSchedule = (florist) => { const key = submissionKey(florist, viewMonth, viewYear); setSubmissions({ ...submissions, [key]: { status: 'pending', note: '', submittedAt: todayISO() } }); };
-  const editSchedule = (florist) => { const key = submissionKey(florist, viewMonth, viewYear); const updated = { ...submissions }; delete updated[key]; setSubmissions(updated); };
-  const decideSubmission = (florist, action) => {
-    const key = submissionKey(florist, viewMonth, viewYear);
-    const note = noteDrafts[key] || '';
-    setSubmissions({ ...submissions, [key]: { ...submissions[key], status: action, note, decidedAt: todayISO() } });
-    setNoteDrafts({ ...noteDrafts, [key]: '' });
-  };
+  function submitSchedule(florist) {
+    var key = submissionKey(florist, viewMonth, viewYear);
+    var next = Object.assign({}, submissions);
+    next[key] = { status: 'pending', note: '', submittedAt: todayISO() };
+    setSubmissions(next);
+  }
+  function editSchedule(florist) {
+    var key = submissionKey(florist, viewMonth, viewYear);
+    var updated = Object.assign({}, submissions);
+    delete updated[key];
+    setSubmissions(updated);
+  }
+  function decideSubmission(florist, action) {
+    var key = submissionKey(florist, viewMonth, viewYear);
+    var note = noteDrafts[key] || '';
+    var next = Object.assign({}, submissions);
+    next[key] = Object.assign({}, submissions[key], { status: action, note: note, decidedAt: todayISO() });
+    setSubmissions(next);
+    var nd = Object.assign({}, noteDrafts);
+    nd[key] = '';
+    setNoteDrafts(nd);
+  }
 
-  const addFlorist = (name) => {
-    const trimmed = name.trim();
-    if (!trimmed || florists.includes(trimmed)) return;
-    setFlorists([...florists, trimmed]);
-    setShiftRates({ ...shiftRates, [trimmed]: DEFAULT_SHIFT_RATE });
-    setPasswords({ ...passwords, [trimmed]: DEFAULT_FLORIST_PASSWORD });
-  };
-  const removeFlorist = (name) => { setFlorists(florists.filter(f => f !== name)); if (filterFlorist === name) setFilterFlorist('all'); };
-  const renameFlorist = (oldName, newName) => {
-    const trimmed = newName.trim();
-    if (!trimmed || trimmed === oldName || florists.includes(trimmed)) return;
-    const result = renameFloristEverywhere(oldName, trimmed, { florists, shiftRates, passwords, workDays, bookings, onetimes, extraEarnings, submissions, adminFloristName, filterFlorist });
-    setFlorists(result.florists); setShiftRates(result.shiftRates); setPasswords(result.passwords);
-    setWorkDays(result.workDays); setBookings(result.bookings); setOnetimes(result.onetimes);
-    setExtraEarnings(result.extraEarnings); setSubmissions(result.submissions);
-    setAdminFloristName(result.adminFloristName); setFilterFlorist(result.filterFlorist);
+  function addFlorist(name) {
+    var trimmed = name.trim();
+    if (!trimmed || florists.indexOf(trimmed) !== -1) return;
+    setFlorists(florists.concat([trimmed]));
+    var sr = Object.assign({}, shiftRates); sr[trimmed] = DEFAULT_SHIFT_RATE; setShiftRates(sr);
+    var pw = Object.assign({}, passwords); pw[trimmed] = DEFAULT_FLORIST_PASSWORD; setPasswords(pw);
+  }
+  function removeFlorist(name) {
+    setFlorists(florists.filter(function (f) { return f !== name; }));
+    if (filterFlorist === name) setFilterFlorist('all');
+  }
+  function renameFlorist(oldName, newName) {
+    var trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName || florists.indexOf(trimmed) !== -1) return;
+    var result = renameFloristEverywhere(oldName, trimmed, {
+      florists: florists, shiftRates: shiftRates, passwords: passwords, workDays: workDays,
+      bookings: bookings, onetimes: onetimes, extraEarnings: extraEarnings, submissions: submissions,
+      adminFloristName: adminFloristName, filterFlorist: filterFlorist
+    });
+    setFlorists(result.florists);
+    setShiftRates(result.shiftRates);
+    setPasswords(result.passwords);
+    setWorkDays(result.workDays);
+    setBookings(result.bookings);
+    setOnetimes(result.onetimes);
+    setExtraEarnings(result.extraEarnings);
+    setSubmissions(result.submissions);
+    setAdminFloristName(result.adminFloristName);
+    setFilterFlorist(result.filterFlorist);
     setNoteDrafts({});
-  };
+  }
 
-  const monthBookings = useMemo(() => bookings.filter(b => { const d = new Date(b.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }), [bookings, viewMonth, viewYear]);
-  const monthOnetimes = useMemo(() => onetimes.filter(o => { const d = new Date(o.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }), [onetimes, viewMonth, viewYear]);
-  const monthWorkDays = useMemo(() => workDays.filter(w => { const d = new Date(w.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }), [workDays, viewMonth, viewYear]);
-  const monthExtraEarnings = useMemo(() => extraEarnings.filter(e => { const d = new Date(e.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }), [extraEarnings, viewMonth, viewYear]);
+  var monthBookings = useMemo(function () { return bookings.filter(function (b) { var d = new Date(b.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }); }, [bookings, viewMonth, viewYear]);
+  var monthOnetimes = useMemo(function () { return onetimes.filter(function (o) { var d = new Date(o.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }); }, [onetimes, viewMonth, viewYear]);
+  var monthWorkDays = useMemo(function () { return workDays.filter(function (w) { var d = new Date(w.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }); }, [workDays, viewMonth, viewYear]);
+  var monthExtraEarnings = useMemo(function () { return extraEarnings.filter(function (e) { var d = new Date(e.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }); }, [extraEarnings, viewMonth, viewYear]);
 
-  const payrollByFlorist = useMemo(() => {
-    const map = {};
-    const ensure = (f) => { if (!map[f]) map[f] = { count: 0, total: 0, zamena: 0, refresh: 0, onetime: 0, shifts: 0, shiftPay: 0, extra: 0 }; return map[f]; };
-    monthBookings.forEach(b => { const rec = ensure(b.florist); const rate = getRate(b.hotel, b.visitType); rec.count += 1; rec.total += rate; if (b.visitType === 'zamena') rec.zamena += rate; else rec.refresh += rate; });
-    monthOnetimes.forEach(o => { const rec = ensure(o.florist); const rate = parseFloat(o.rate) || 0; rec.count += 1; rec.total += rate; rec.onetime += rate; });
-    monthExtraEarnings.forEach(e => { const rec = ensure(e.florist); const amount = parseFloat(e.amount) || 0; rec.extra += amount; rec.total += amount; });
-    monthWorkDays.forEach(w => {
-      const rec = ensure(w.florist);
+  var payrollByFlorist = useMemo(function () {
+    var map = {};
+    function ensure(f) {
+      if (!map[f]) map[f] = { count: 0, total: 0, zamena: 0, refresh: 0, onetime: 0, shifts: 0, shiftPay: 0, extra: 0 };
+      return map[f];
+    }
+    monthBookings.forEach(function (b) {
+      var rec = ensure(b.florist);
+      var rate = getRate(b.hotel, b.visitType);
+      rec.count += 1; rec.total += rate;
+      if (b.visitType === 'zamena') rec.zamena += rate; else rec.refresh += rate;
+    });
+    monthOnetimes.forEach(function (o) {
+      var rec = ensure(o.florist);
+      var rate = parseFloat(o.rate) || 0;
+      rec.count += 1; rec.total += rate; rec.onetime += rate;
+    });
+    monthExtraEarnings.forEach(function (e) {
+      var rec = ensure(e.florist);
+      var amount = parseFloat(e.amount) || 0;
+      rec.extra += amount; rec.total += amount;
+    });
+    monthWorkDays.forEach(function (w) {
+      var rec = ensure(w.florist);
       if (w.florist === adminFloristName) return;
-      const baseRate = shiftRates[w.florist] ?? DEFAULT_SHIFT_RATE;
-      const pct = w.percent ?? 100;
-      const rate = baseRate * (pct / 100);
+      var baseRate = shiftRates[w.florist] != null ? shiftRates[w.florist] : DEFAULT_SHIFT_RATE;
+      var pct = w.percent != null ? w.percent : 100;
+      var rate = baseRate * (pct / 100);
       rec.shifts += 1; rec.shiftPay += rate; rec.total += rate;
     });
-    if (adminFloristName) { const adminRec = ensure(adminFloristName); adminRec.shiftPay += adminSalary; adminRec.total += adminSalary; }
+    if (adminFloristName) {
+      var adminRec = ensure(adminFloristName);
+      adminRec.shiftPay += adminSalary;
+      adminRec.total += adminSalary;
+    }
     return map;
   }, [monthBookings, monthOnetimes, monthExtraEarnings, monthWorkDays, shiftRates, adminFloristName, adminSalary]);
 
-  const grandTotal = Object.values(payrollByFlorist).reduce((s, f) => s + f.total, 0);
+  var grandTotal = Object.keys(payrollByFlorist).reduce(function (s, k) { return s + payrollByFlorist[k].total; }, 0);
 
-  const changeMonth = (delta) => { let m = viewMonth + delta, y = viewYear; if (m < 0) { m = 11; y -= 1; } if (m > 11) { m = 0; y += 1; } setViewMonth(m); setViewYear(y); };
-  const formatMoney = (n) => new Intl.NumberFormat('ru-RU').format(n);
+  function changeMonth(delta) {
+    var m = viewMonth + delta, y = viewYear;
+    if (m < 0) { m = 11; y -= 1; }
+    if (m > 11) { m = 0; y += 1; }
+    setViewMonth(m); setViewYear(y);
+  }
+  function formatMoney(n) { return new Intl.NumberFormat('ru-RU').format(n); }
 
-  const attemptLogin = () => {
+  function attemptLogin() {
     if (!loginTarget) return;
-    const correctPassword = passwords[loginTarget];
-    const isManagerTarget = loginTarget === 'manager';
+    var correctPassword = passwords[loginTarget];
+    var isManagerTarget = loginTarget === 'manager';
     if (passwordInput === correctPassword || (isManagerTarget && passwordInput === MANAGER_BACKUP_PASSWORD)) {
       setCurrentUser(loginTarget); setLoginTarget(null); setPasswordInput(''); setLoginError('');
     } else { setLoginError('Неверный пароль'); setPasswordInput(''); }
-  };
+  }
 
-  const savePassword = (profile) => {
-    const draft = newPasswordDrafts[profile];
+  function savePassword(profile) {
+    var draft = newPasswordDrafts[profile];
     if (!draft || !/^\d{6}$/.test(draft)) return;
-    setPasswords({ ...passwords, [profile]: draft });
-    setNewPasswordDrafts({ ...newPasswordDrafts, [profile]: '' });
-  };
+    var pw = Object.assign({}, passwords); pw[profile] = draft; setPasswords(pw);
+    var np = Object.assign({}, newPasswordDrafts); np[profile] = ''; setNewPasswordDrafts(np);
+  }
 
-  const exportCSV = () => {
-    const headers = ['Дата', 'Флорист', 'Тип', 'Отель/Проект', 'Замена/Рефреш', 'Сумма'];
-    const rows = [
-      ...monthWorkDays.filter(w => w.florist !== adminFloristName).map(w => [w.date, w.florist, 'Смена', 'Ставка за выход', '-', (shiftRates[w.florist] ?? DEFAULT_SHIFT_RATE) * ((w.percent ?? 100) / 100)]),
-      ...(adminFloristName ? [[`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`, adminFloristName, 'Оклад', 'Фиксированный оклад за месяц', '-', adminSalary]] : []),
-      ...monthBookings.map(b => [b.date, b.florist, 'Отель', b.hotel, b.visitType === 'zamena' ? 'Замена' : 'Рефреш', getRate(b.hotel, b.visitType)]),
-      ...monthOnetimes.map(o => [o.date, o.florist, 'Разовое', o.projectName, '-', parseFloat(o.rate) || 0]),
-      ...monthExtraEarnings.map(e => [e.date, e.florist, 'Доп. заработок', e.description, '-', parseFloat(e.amount) || 0]),
-    ];
-    const csv = [headers, ...rows].map(r => r.join(';')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `зарплаты_${monthNames[viewMonth]}_${viewYear}.csv`; a.click();
+  function exportCSV() {
+    var headers = ['Дата', 'Флорист', 'Тип', 'Отель/Проект', 'Замена/Рефреш', 'Сумма'];
+    var rows = [];
+    monthWorkDays.filter(function (w) { return w.florist !== adminFloristName; }).forEach(function (w) {
+      rows.push([w.date, w.florist, 'Смена', 'Ставка за выход', '-', (shiftRates[w.florist] != null ? shiftRates[w.florist] : DEFAULT_SHIFT_RATE) * ((w.percent != null ? w.percent : 100) / 100)]);
+    });
+    if (adminFloristName) {
+      rows.push([viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-01', adminFloristName, 'Оклад', 'Фиксированный оклад за месяц', '-', adminSalary]);
+    }
+    monthBookings.forEach(function (b) { rows.push([b.date, b.florist, 'Отель', b.hotel, b.visitType === 'zamena' ? 'Замена' : 'Рефреш', getRate(b.hotel, b.visitType)]); });
+    monthOnetimes.forEach(function (o) { rows.push([o.date, o.florist, 'Разовое', o.projectName, '-', parseFloat(o.rate) || 0]); });
+    monthExtraEarnings.forEach(function (e) { rows.push([e.date, e.florist, 'Доп. заработок', e.description, '-', parseFloat(e.amount) || 0]); });
+    var csv = [headers].concat(rows).map(function (r) { return r.join(';'); }).join('\n');
+    var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'зарплаты_' + monthNames[viewMonth] + '_' + viewYear + '.csv'; a.click();
     URL.revokeObjectURL(url);
-  };
+  }
 
   if (!loaded) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center flex-col gap-3">
-        <PetalBurst petals={petals} show={showBurst} />
-        <Loader2 className="w-8 h-8 text-orange-500 text-3xl" />
-        {loadError && <div className="text-orange-600 text-sm max-w-sm text-center px-4">{loadError}</div>}
-      </div>
+    return React.createElement('div', { className: 'min-h-screen bg-white flex items-center justify-center' },
+      React.createElement(PetalBurst, { petals: petals, show: showBurst }),
+      React.createElement(Loader2, { className: 'w-8 h-8 text-orange-500 text-3xl' })
     );
   }
 
   if (!currentUser) {
     if (loginTarget) {
-      const label = loginTarget === 'manager' ? 'Руководитель' : loginTarget;
-      return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-6">
-          <div className="max-w-sm w-full bg-white rounded-2xl border-2 border-black p-6">
-            <div className="text-center mb-5">
-              <div className="inline-flex bg-orange-500 p-3 rounded-2xl mb-3"><Lock className="w-6 h-6 text-white text-xl" /></div>
-              <h2 className="text-lg font-bold text-black">{label}</h2>
-              <p className="text-xs text-black/50 mt-1">Введите 6-значный пароль</p>
-            </div>
-            <input type="password" inputMode="numeric" maxLength={6} value={passwordInput}
-              onChange={(e) => { setPasswordInput(e.target.value.replace(/\D/g, '').slice(0, 6)); setLoginError(''); }}
-              onKeyDown={(e) => e.key === 'Enter' && attemptLogin()} placeholder="••••••" autoFocus
-              className="w-full text-center text-2xl tracking-[0.5em] px-3 py-3 border-2 border-black rounded-xl outline-none focus:border-orange-500 mb-3 text-black" />
-            {loginError && <div className="text-orange-600 text-xs text-center mb-3 font-medium">{loginError}</div>}
-            <button onClick={attemptLogin} disabled={passwordInput.length !== 6}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-black/10 disabled:text-black/30 text-white py-2.5 rounded-xl font-medium transition-colors">Войти</button>
-            <button onClick={() => { setLoginTarget(null); setPasswordInput(''); setLoginError(''); }}
-              className="w-full text-black/40 text-sm py-2 mt-1">Назад</button>
-          </div>
-        </div>
+      var label = loginTarget === 'manager' ? 'Руководитель' : loginTarget;
+      return React.createElement('div', { className: 'min-h-screen bg-white flex items-center justify-center p-6' },
+        React.createElement('div', { className: 'max-w-sm w-full bg-white rounded-2xl border-2 border-black p-6' },
+          React.createElement('div', { className: 'text-center mb-5' },
+            React.createElement('div', { className: 'inline-flex bg-orange-500 p-3 rounded-2xl mb-3' }, React.createElement(Lock, { className: 'w-6 h-6 text-white text-xl' })),
+            React.createElement('h2', { className: 'text-lg font-bold text-black' }, label),
+            React.createElement('p', { className: 'text-xs text-black/50 mt-1' }, 'Введите 6-значный пароль')
+          ),
+          React.createElement('input', {
+            type: 'password', inputMode: 'numeric', maxLength: 6, value: passwordInput,
+            onChange: function (e) { setPasswordInput(e.target.value.replace(/\D/g, '').slice(0, 6)); setLoginError(''); },
+            onKeyDown: function (e) { if (e.key === 'Enter') attemptLogin(); },
+            placeholder: '••••••', autoFocus: true,
+            className: 'w-full text-center text-2xl tracking-[0.5em] px-3 py-3 border-2 border-black rounded-xl outline-none focus:border-orange-500 mb-3 text-black'
+          }),
+          loginError && React.createElement('div', { className: 'text-orange-600 text-xs text-center mb-3 font-medium' }, loginError),
+          React.createElement('button', {
+            onClick: attemptLogin, disabled: passwordInput.length !== 6,
+            className: 'w-full bg-orange-500 hover:bg-orange-600 disabled:bg-black/10 disabled:text-black/30 text-white py-2.5 rounded-xl font-medium transition-colors'
+          }, 'Войти'),
+          React.createElement('button', {
+            onClick: function () { setLoginTarget(null); setPasswordInput(''); setLoginError(''); },
+            className: 'w-full text-black/40 text-sm py-2 mt-1'
+          }, 'Назад')
+        )
       );
     }
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6">
-        <PetalBurst petals={petals} show={showBurst} />
-        <div className="max-w-md w-full">
-          <div className="text-center mb-8">
-            <div className="inline-flex bg-orange-500 p-3 rounded-2xl mb-3"><Sparkles className="w-8 h-8 text-white text-2xl" /></div>
-            <h1 className="text-2xl font-bold text-black">Вкус и Цвет</h1>
-            <p className="text-black/50 text-sm mt-1">Выберите профиль для входа</p>
-          </div>
-          <button onClick={() => { setLoginTarget('manager'); setPasswordInput(''); setLoginError(''); }}
-            className="w-full flex items-center gap-3 bg-black hover:bg-black/85 text-white p-4 rounded-xl mb-4 transition-colors">
-            <Lock className="w-5 h-5 text-orange-500" />
-            <div className="text-left"><div className="font-semibold">Руководитель</div><div className="text-xs text-white/60">Тарифы, расчёт зарплаты, все данные</div></div>
-          </button>
-          <div className="text-xs text-black/40 uppercase tracking-wide mb-2 px-1">Флористы</div>
-          <div className="grid grid-cols-2 gap-3">
-            {florists.map(f => (
-              <button key={f} onClick={() => { setLoginTarget(f); setPasswordInput(''); setLoginError(''); }}
-                className="flex items-center gap-2 bg-white hover:bg-orange-50 border-2 border-black hover:border-orange-500 p-3 rounded-xl transition-colors">
-                <Users className="w-4 h-4 text-orange-500" /><span className="text-black font-medium">{f}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+    return React.createElement('div', { className: 'min-h-screen bg-white flex items-center justify-center p-6' },
+      React.createElement(PetalBurst, { petals: petals, show: showBurst }),
+      React.createElement('div', { className: 'max-w-md w-full' },
+        React.createElement('div', { className: 'text-center mb-8' },
+          React.createElement('div', { className: 'inline-flex bg-orange-500 p-3 rounded-2xl mb-3' }, React.createElement(Sparkles, { className: 'w-8 h-8 text-white text-2xl' })),
+          React.createElement('h1', { className: 'text-2xl font-bold text-black' }, 'Вкус и Цвет'),
+          React.createElement('p', { className: 'text-black/50 text-sm mt-1' }, 'Выберите профиль для входа')
+        ),
+        React.createElement('button', {
+          onClick: function () { setLoginTarget('manager'); setPasswordInput(''); setLoginError(''); },
+          className: 'w-full flex items-center gap-3 bg-black hover:bg-black/85 text-white p-4 rounded-xl mb-4 transition-colors'
+        },
+          React.createElement(Lock, { className: 'w-5 h-5 text-orange-500' }),
+          React.createElement('div', { className: 'text-left' },
+            React.createElement('div', { className: 'font-semibold' }, 'Руководитель'),
+            React.createElement('div', { className: 'text-xs text-white/60' }, 'Тарифы, расчёт зарплаты, все данные')
+          )
+        ),
+        React.createElement('div', { className: 'text-xs text-black/40 uppercase tracking-wide mb-2 px-1' }, 'Флористы'),
+        React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
+          florists.map(function (f) {
+            return React.createElement('button', {
+              key: f,
+              onClick: function () { setLoginTarget(f); setPasswordInput(''); setLoginError(''); },
+              className: 'flex items-center gap-2 bg-white hover:bg-orange-50 border-2 border-black hover:border-orange-500 p-3 rounded-xl transition-colors'
+            },
+              React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }),
+              React.createElement('span', { className: 'text-black font-medium' }, f)
+            );
+          })
+        )
+      )
     );
   }
 
-  const isManager = currentUser === 'manager';
+  var isManager = currentUser === 'manager';
 
   if (!isManager) {
-    const firstDay = new Date(viewYear, viewMonth, 1);
-    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-    let startWeekday = firstDay.getDay(); startWeekday = startWeekday === 0 ? 6 : startWeekday - 1;
-    const cells = []; for (let i = 0; i < startWeekday; i++) cells.push(null); for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    const slotsByDay = {};
-    availableSlots.forEach(slot => { const day = parseInt(slot.date.slice(8, 10), 10); if (!slotsByDay[day]) slotsByDay[day] = []; slotsByDay[day].push(slot); });
-    const myWorkDayNumbers = workDays.filter(w => w.florist === currentUser).map(w => new Date(w.date)).filter(d => d.getMonth() === viewMonth && d.getFullYear() === viewYear).map(d => d.getDate()).sort((a, b) => a - b);
-    const myShiftRate = shiftRates[currentUser] ?? DEFAULT_SHIFT_RATE;
-    const isAdmin = currentUser === adminFloristName;
-    const subKey = submissionKey(currentUser, viewMonth, viewYear);
-    const mySubmission = submissions[subKey];
-    const myStatus = mySubmission?.status || 'draft';
-    const locked = myStatus === 'pending' || myStatus === 'approved';
-    const colleaguesOnDate = (dateStr) => workDays.filter(w => w.date === dateStr && w.florist !== currentUser).map(w => w.florist);
-    const myExtraEarnings = extraEarnings.filter(e => { const d = new Date(e.date); return e.florist === currentUser && d.getMonth() === viewMonth && d.getFullYear() === viewYear; });
-    const myExtraTotal = myExtraEarnings.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-    const myPayroll = payrollByFlorist[currentUser] || { shiftPay: 0, zamena: 0, refresh: 0, onetime: 0, extra: 0, total: 0 };
-    const myTiles = [];
+    var firstDay = new Date(viewYear, viewMonth, 1);
+    var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    var startWeekday = firstDay.getDay(); startWeekday = startWeekday === 0 ? 6 : startWeekday - 1;
+    var cells = [];
+    for (var i = 0; i < startWeekday; i++) cells.push(null);
+    for (var d2 = 1; d2 <= daysInMonth; d2++) cells.push(d2);
+
+    var slotsByDay = {};
+    availableSlots.forEach(function (slot) {
+      var day = parseInt(slot.date.slice(8, 10), 10);
+      if (!slotsByDay[day]) slotsByDay[day] = [];
+      slotsByDay[day].push(slot);
+    });
+
+    var myWorkDayNumbers = workDays.filter(function (w) { return w.florist === currentUser; })
+      .map(function (w) { return new Date(w.date); })
+      .filter(function (d) { return d.getMonth() === viewMonth && d.getFullYear() === viewYear; })
+      .map(function (d) { return d.getDate(); })
+      .sort(function (a, b) { return a - b; });
+
+    var myShiftRate = shiftRates[currentUser] != null ? shiftRates[currentUser] : DEFAULT_SHIFT_RATE;
+    var isAdmin = currentUser === adminFloristName;
+    var subKey = submissionKey(currentUser, viewMonth, viewYear);
+    var mySubmission = submissions[subKey];
+    var myStatus = mySubmission ? mySubmission.status : 'draft';
+    var locked = myStatus === 'pending' || myStatus === 'approved';
+
+    function colleaguesOnDate(dateStr) {
+      return workDays.filter(function (w) { return w.date === dateStr && w.florist !== currentUser; }).map(function (w) { return w.florist; });
+    }
+
+    var myExtraEarnings = extraEarnings.filter(function (e) {
+      var d = new Date(e.date);
+      return e.florist === currentUser && d.getMonth() === viewMonth && d.getFullYear() === viewYear;
+    });
+    var myExtraTotal = myExtraEarnings.reduce(function (s, e) { return s + (parseFloat(e.amount) || 0); }, 0);
+
+    var myPayroll = payrollByFlorist[currentUser] || { shiftPay: 0, zamena: 0, refresh: 0, onetime: 0, extra: 0, total: 0 };
+    var myTiles = [];
     myTiles.push({ label: isAdmin ? 'Оклад' : 'Смены', value: myPayroll.shiftPay });
     myTiles.push({ label: 'Замены', value: myPayroll.zamena });
     myTiles.push({ label: 'Рефреши', value: myPayroll.refresh });
     if (myPayroll.onetime > 0) myTiles.push({ label: 'Разовые', value: myPayroll.onetime });
     if (myPayroll.extra > 0) myTiles.push({ label: 'Доп. заработок', value: myPayroll.extra });
 
-    return (
-      <div className="min-h-screen bg-white">
-        <div className="bg-white border-b-2 border-black px-4 py-4 flex items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center gap-2">
-            <div className="bg-orange-500 p-2 rounded-lg"><Calendar className="w-5 h-5 text-white" /></div>
-            <div><div className="font-semibold text-black">{currentUser}</div><div className="text-xs text-black/40">Расписание выездов</div></div>
-          </div>
-          <button onClick={() => { setCurrentUser(null); setPasswordInput(''); }} className="text-black/40 hover:text-orange-500 p-2"><LogOut className="w-5 h-5" /></button>
-        </div>
-        <div className="p-4 max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-4 bg-white rounded-xl border-2 border-black p-3">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-orange-50 rounded-lg text-xl"><ChevronLeft className="w-5 h-5 text-black" /></button>
-            <div className="font-semibold text-black">{monthNames[viewMonth]} {viewYear}</div>
-            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-orange-50 rounded-lg text-xl"><ChevronRight className="w-5 h-5 text-black" /></button>
-          </div>
-
-          <div className="bg-black rounded-xl p-4 mb-4">
-            <div className="text-white/60 text-xs font-medium mb-2">Мой заработок за {monthNames[viewMonth]}</div>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              {myTiles.map(t => (
-                <div key={t.label} className="bg-white/10 rounded-lg px-3 py-2">
-                  <div className="text-white/50 text-[10px]">{t.label}</div>
-                  <div className="text-white font-semibold text-sm">{formatMoney(t.value)} ₽</div>
-                </div>
-              ))}
-            </div>
-            <div className="flex items-center justify-between pt-2 border-t border-white/10">
-              <span className="text-white text-sm font-medium">Итого</span>
-              <span className="text-orange-500 font-bold text-lg">{formatMoney(myPayroll.total)} ₽</span>
-            </div>
-          </div>
-
-          {myStatus === 'pending' && <div className="bg-orange-500 text-white rounded-xl p-3 mb-4 text-sm font-medium text-center">Расписание отправлено — ожидает решения руководителя</div>}
-          {myStatus === 'approved' && (
-            <div className="bg-black text-white rounded-xl p-3 mb-4 flex items-center justify-between">
-              <span className="text-sm font-medium">✓ Расписание утверждено</span>
-              <button onClick={() => editSchedule(currentUser)} className="text-orange-500 text-xs font-medium underline">Изменить</button>
-            </div>
-          )}
-          {myStatus === 'rejected' && (
-            <div className="border-2 border-orange-500 rounded-xl p-3 mb-4">
-              <div className="text-orange-600 text-sm font-semibold mb-1">Отклонено руководителем</div>
-              {mySubmission.note && <div className="text-black text-sm">{mySubmission.note}</div>}
-            </div>
-          )}
-
-          <div className="bg-white rounded-xl border-2 border-black p-3 mb-4">
-            <div className="text-sm font-semibold text-black mb-1">{isAdmin ? 'Доступ к отелям' : 'Мой график'}</div>
-            <p className="text-xs text-black/50 mb-3">
-              {isAdmin ? 'У вас фиксированный оклад — отметка дня открывает доступ к отельным выездам, отдельная оплата за выход не начисляется.' : `Отметьте рабочие дни — ставка за выход ${formatMoney(myShiftRate)} ₽/смена.`}
-            </p>
-            <div className="grid grid-cols-7 gap-1.5 mb-1.5 text-xs text-black/40 font-medium text-center">{WEEKDAYS.map(d => <div key={d}>{d}</div>)}</div>
-            <div className="grid grid-cols-7 gap-1.5">
-              {cells.map((day, idx) => {
-                if (!day) return <div key={idx} />;
-                const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isToday = dateStr === todayISO();
-                const working = isWorkDay(currentUser, dateStr);
-                const cellDisabled = locked;
-                return (
-                  <button key={idx} onClick={() => !cellDisabled && toggleWorkDay(currentUser, dateStr)} disabled={cellDisabled}
-                    className={`h-12 rounded-lg border-2 flex items-center justify-center transition-colors ${working ? 'bg-orange-500 border-orange-500 text-white' : isToday ? 'border-orange-300 text-black' : 'border-black/10 text-black/60 hover:bg-orange-50'} ${cellDisabled ? 'opacity-40 cursor-not-allowed hover:bg-transparent' : ''}`}>
-                    <span className="text-xs font-medium">{day}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {!isAdmin && <p className="text-[10px] text-black/40 mt-2">Смен в этом месяце: {myWorkDayNumbers.length} · Оплата за смены: {formatMoney(myWorkDayNumbers.length * myShiftRate)} ₽</p>}
-            {isAdmin && <p className="text-[10px] text-black/40 mt-2">Оклад за месяц: {formatMoney(payrollByFlorist[currentUser]?.shiftPay ?? adminSalary)} ₽ (не зависит от количества выездов)</p>}
-          </div>
-
-          <div className="text-xs font-medium text-black/50 mb-2 px-1">Расписание по отелям — доступно в мои рабочие дни</div>
-          {myWorkDayNumbers.length === 0 ? (
-            <div className="text-center text-black/40 py-8 text-sm bg-white rounded-xl border-2 border-black">Сначала отметьте рабочие дни выше</div>
-          ) : (
-            <div className="space-y-2">
-              {myWorkDayNumbers.map(day => {
-                const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const daySlots = slotsByDay[day] || [];
-                const colleagues = colleaguesOnDate(dateStr);
-                return (
-                  <div key={day} className="bg-white rounded-xl border-2 border-black p-3">
-                    <div className="text-sm font-semibold text-black mb-1">{new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })}</div>
-                    {colleagues.length > 0 && <div className="text-xs text-orange-600 mb-2">С вами в смене: {colleagues.join(', ')}</div>}
-                    {daySlots.length === 0 ? <div className="text-xs text-black/30">Нет выездов в этот день</div> : (
-                      <div className="space-y-1.5">
-                        {daySlots.map((slot, idx) => {
-                          const taken = slotBookings(slot.date, slot.hotel, slot.visitType);
-                          const isFull = taken.length >= slot.maxPerSlot;
-                          const iAmIn = taken.some(t => t.florist === currentUser);
-                          return (
-                            <div key={idx} className={`flex items-center justify-between rounded-lg px-3 py-2 border ${iAmIn ? 'bg-orange-50 border-orange-300' : 'bg-white border-black/10'}`}>
-                              <div>
-                                <div className="text-sm text-black font-medium">{slot.hotel}</div>
-                                <div className="text-xs text-black/40 flex items-center gap-1.5 mt-0.5">
-                                  <span className="bg-white border border-black/20 px-1.5 py-0.5 rounded-full">{slot.visitType === 'zamena' ? 'Замена' : 'Рефреш'}</span>
-                                  {taken.length > 0 && <span>{taken.map(t => t.florist).join(', ')} ({taken.length}/{slot.maxPerSlot})</span>}
-                                </div>
-                              </div>
-                              <button onClick={() => !locked && toggleBooking(slot, currentUser)} disabled={(isFull && !iAmIn) || locked}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${iAmIn ? 'bg-orange-100 text-orange-700 hover:bg-black/10 hover:text-black' : (isFull || locked) ? 'bg-black/10 text-black/30 cursor-not-allowed' : 'bg-orange-500 text-white hover:bg-orange-600'}`}>
-                                {iAmIn ? 'Я еду ✓' : isFull ? 'Занято' : 'Встать'}
-                              </button>
-                            </div>
+    return React.createElement('div', { className: 'min-h-screen bg-white' },
+      React.createElement('div', { className: 'bg-white border-b-2 border-black px-4 py-4 flex items-center justify-between sticky top-0 z-10' },
+        React.createElement('div', { className: 'flex items-center gap-2' },
+          React.createElement('div', { className: 'bg-orange-500 p-2 rounded-lg' }, React.createElement(Calendar, { className: 'w-5 h-5 text-white' })),
+          React.createElement('div', null,
+            React.createElement('div', { className: 'font-semibold text-black' }, currentUser),
+            React.createElement('div', { className: 'text-xs text-black/40' }, 'Расписание выездов')
+          )
+        ),
+        React.createElement('button', { onClick: function () { setCurrentUser(null); setPasswordInput(''); }, className: 'text-black/40 hover:text-orange-500 p-2' }, React.createElement(LogOut, { className: 'w-5 h-5' }))
+      ),
+      React.createElement('div', { className: 'p-4 max-w-2xl mx-auto' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-4 bg-white rounded-xl border-2 border-black p-3' },
+          React.createElement('button', { onClick: function () { changeMonth(-1); }, className: 'p-2 hover:bg-orange-50 rounded-lg' }, React.createElement(ChevronLeft, { className: 'w-5 h-5 text-black' })),
+          React.createElement('div', { className: 'font-semibold text-black' }, monthNames[viewMonth] + ' ' + viewYear),
+          React.createElement('button', { onClick: function () { changeMonth(1); }, className: 'p-2 hover:bg-orange-50 rounded-lg' }, React.createElement(ChevronRight, { className: 'w-5 h-5 text-black' }))
+        ),
+        React.createElement('div', { className: 'bg-black rounded-xl p-4 mb-4' },
+          React.createElement('div', { className: 'text-white/60 text-xs font-medium mb-2' }, 'Мой заработок за ' + monthNames[viewMonth]),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-2 mb-3' },
+            myTiles.map(function (t) {
+              return React.createElement('div', { key: t.label, className: 'bg-white/10 rounded-lg px-3 py-2' },
+                React.createElement('div', { className: 'text-white/50 text-[10px]' }, t.label),
+                React.createElement('div', { className: 'text-white font-semibold text-sm' }, formatMoney(t.value) + ' ₽')
+              );
+            })
+          ),
+          React.createElement('div', { className: 'flex items-center justify-between pt-2 border-t border-white/10' },
+            React.createElement('span', { className: 'text-white text-sm font-medium' }, 'Итого'),
+            React.createElement('span', { className: 'text-orange-500 font-bold text-lg' }, formatMoney(myPayroll.total) + ' ₽')
+          )
+        ),
+        myStatus === 'pending' && React.createElement('div', { className: 'bg-orange-500 text-white rounded-xl p-3 mb-4 text-sm font-medium text-center' }, 'Расписание отправлено — ожидает решения руководителя'),
+        myStatus === 'approved' && React.createElement('div', { className: 'bg-black text-white rounded-xl p-3 mb-4 flex items-center justify-between' },
+          React.createElement('span', { className: 'text-sm font-medium' }, '✓ Расписание утверждено'),
+          React.createElement('button', { onClick: function () { editSchedule(currentUser); }, className: 'text-orange-500 text-xs font-medium underline' }, 'Изменить')
+        ),
+        myStatus === 'rejected' && React.createElement('div', { className: 'border-2 border-orange-500 rounded-xl p-3 mb-4' },
+          React.createElement('div', { className: 'text-orange-600 text-sm font-semibold mb-1' }, 'Отклонено руководителем'),
+          mySubmission.note && React.createElement('div', { className: 'text-black text-sm' }, mySubmission.note)
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-3 mb-4' },
+          React.createElement('div', { className: 'text-sm font-semibold text-black mb-1' }, isAdmin ? 'Доступ к отелям' : 'Мой график'),
+          React.createElement('p', { className: 'text-xs text-black/50 mb-3' },
+            isAdmin ? 'У вас фиксированный оклад — отметка дня открывает доступ к отельным выездам, отдельная оплата за выход не начисляется.' : ('Отметьте рабочие дни — ставка за выход ' + formatMoney(myShiftRate) + ' ₽/смена.')
+          ),
+          React.createElement('div', { className: 'grid grid-cols-7 gap-1.5 mb-1.5 text-xs text-black/40 font-medium text-center' }, WEEKDAYS.map(function (w) { return React.createElement('div', { key: w }, w); })),
+          React.createElement('div', { className: 'grid grid-cols-7 gap-1.5' },
+            cells.map(function (day, idx) {
+              if (!day) return React.createElement('div', { key: idx });
+              var dateStr = viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+              var isToday = dateStr === todayISO();
+              var working = isWorkDay(currentUser, dateStr);
+              var cellDisabled = locked;
+              return React.createElement('button', {
+                key: idx,
+                onClick: function () { if (!cellDisabled) toggleWorkDay(currentUser, dateStr); },
+                disabled: cellDisabled,
+                className: 'h-12 rounded-lg border-2 flex items-center justify-center transition-colors ' +
+                  (working ? 'bg-orange-500 border-orange-500 text-white' : isToday ? 'border-orange-300 text-black' : 'border-black/10 text-black/60 hover:bg-orange-50') +
+                  (cellDisabled ? ' opacity-40 cursor-not-allowed hover:bg-transparent' : '')
+              }, React.createElement('span', { className: 'text-xs font-medium' }, day));
+            })
+          ),
+          !isAdmin && React.createElement('p', { className: 'text-[10px] text-black/40 mt-2' }, 'Смен в этом месяце: ' + myWorkDayNumbers.length + ' · Оплата за смены: ' + formatMoney(myWorkDayNumbers.length * myShiftRate) + ' ₽'),
+          isAdmin && React.createElement('p', { className: 'text-[10px] text-black/40 mt-2' }, 'Оклад за месяц: ' + formatMoney(myPayroll.shiftPay) + ' ₽ (не зависит от количества выездов)')
+        ),
+        React.createElement('div', { className: 'text-xs font-medium text-black/50 mb-2 px-1' }, 'Расписание по отелям — доступно в мои рабочие дни'),
+        myWorkDayNumbers.length === 0
+          ? React.createElement('div', { className: 'text-center text-black/40 py-8 text-sm bg-white rounded-xl border-2 border-black' }, 'Сначала отметьте рабочие дни выше')
+          : React.createElement('div', { className: 'space-y-2' },
+              myWorkDayNumbers.map(function (day) {
+                var dateStr = viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                var daySlots = slotsByDay[day] || [];
+                var colleagues = colleaguesOnDate(dateStr);
+                return React.createElement('div', { key: day, className: 'bg-white rounded-xl border-2 border-black p-3' },
+                  React.createElement('div', { className: 'text-sm font-semibold text-black mb-1' }, new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })),
+                  colleagues.length > 0 && React.createElement('div', { className: 'text-xs text-orange-600 mb-2' }, 'С вами в смене: ' + colleagues.join(', ')),
+                  daySlots.length === 0
+                    ? React.createElement('div', { className: 'text-xs text-black/30' }, 'Нет выездов в этот день')
+                    : React.createElement('div', { className: 'space-y-1.5' },
+                        daySlots.map(function (slot, idx) {
+                          var taken = slotBookings(slot.date, slot.hotel, slot.visitType);
+                          var isFull = taken.length >= slot.maxPerSlot;
+                          var iAmIn = taken.some(function (t) { return t.florist === currentUser; });
+                          return React.createElement('div', { key: idx, className: 'flex items-center justify-between rounded-lg px-3 py-2 border ' + (iAmIn ? 'bg-orange-50 border-orange-300' : 'bg-white border-black/10') },
+                            React.createElement('div', null,
+                              React.createElement('div', { className: 'text-sm text-black font-medium' }, slot.hotel),
+                              React.createElement('div', { className: 'text-xs text-black/40 flex items-center gap-1.5 mt-0.5' },
+                                React.createElement('span', { className: 'bg-white border border-black/20 px-1.5 py-0.5 rounded-full' }, slot.visitType === 'zamena' ? 'Замена' : 'Рефреш'),
+                                taken.length > 0 && React.createElement('span', null, taken.map(function (t) { return t.florist; }).join(', ') + ' (' + taken.length + '/' + slot.maxPerSlot + ')')
+                              )
+                            ),
+                            React.createElement('button', {
+                              onClick: function () { if (!locked) toggleBooking(slot, currentUser); },
+                              disabled: (isFull && !iAmIn) || locked,
+                              className: 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ' +
+                                (iAmIn ? 'bg-orange-100 text-orange-700 hover:bg-black/10 hover:text-black' : (isFull || locked) ? 'bg-black/10 text-black/30 cursor-not-allowed' : 'bg-orange-500 text-white hover:bg-orange-600')
+                            }, iAmIn ? 'Я еду ✓' : isFull ? 'Занято' : 'Встать')
                           );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                        })
+                      )
                 );
-              })}
-            </div>
-          )}
-
-          {myWorkDayNumbers.length > 0 && (myStatus === 'draft' || myStatus === 'rejected') && (
-            <button onClick={() => submitSchedule(currentUser)} className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-medium mt-4">Отправить на утверждение</button>
-          )}
-
-          {isAdmin && (
-            <div className="bg-white rounded-xl border-2 border-black p-3 mt-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-sm font-semibold text-black">Доп. заработок</div>
-                <button onClick={() => setShowExtraEarningForm(!showExtraEarningForm)} className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-full font-medium">{showExtraEarningForm ? 'Скрыть' : '+ Добавить'}</button>
-              </div>
-              <p className="text-xs text-black/50 mb-3">КП, создание конструкций и прочие доп. работы — вписываете сами.</p>
-              {showExtraEarningForm && (
-                <div className="space-y-2 mb-3">
-                  <input type="date" value={newExtraEarning.date} onChange={(e) => setNewExtraEarning({ ...newExtraEarning, date: e.target.value })} className="w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black" />
-                  <input type="text" placeholder="Описание (например: КП для отеля X)" value={newExtraEarning.description} onChange={(e) => setNewExtraEarning({ ...newExtraEarning, description: e.target.value })} className="w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black" />
-                  <input type="number" placeholder="Сумма, ₽" value={newExtraEarning.amount} onChange={(e) => setNewExtraEarning({ ...newExtraEarning, amount: e.target.value })} className="w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black" />
-                  <button onClick={() => addExtraEarning(currentUser)} className="w-full bg-black hover:bg-black/85 text-white py-2 rounded-lg text-sm font-medium">Сохранить</button>
-                </div>
-              )}
-              <div className="space-y-1.5">
-                {myExtraEarnings.map(e => (
-                  <div key={e.id} className="flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm">
-                    <span className="text-black">{new Date(e.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · {e.description || '—'}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-black">{formatMoney(parseFloat(e.amount) || 0)} ₽</span>
-                      <button onClick={() => removeExtraEarning(e.id)} className="text-black/30 hover:text-orange-500"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {myExtraEarnings.length > 0 && <p className="text-xs text-black/40 mt-2 text-right">Итого доп. заработка: {formatMoney(myExtraTotal)} ₽</p>}
-            </div>
-          )}
-        </div>
-      </div>
+              })
+            ),
+        myWorkDayNumbers.length > 0 && (myStatus === 'draft' || myStatus === 'rejected') && React.createElement('button', {
+          onClick: function () { submitSchedule(currentUser); },
+          className: 'w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-medium mt-4'
+        }, 'Отправить на утверждение'),
+        isAdmin && React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-3 mt-4' },
+          React.createElement('div', { className: 'flex items-center justify-between mb-1' },
+            React.createElement('div', { className: 'text-sm font-semibold text-black' }, 'Доп. заработок'),
+            React.createElement('button', { onClick: function () { setShowExtraEarningForm(!showExtraEarningForm); }, className: 'text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-full font-medium' }, showExtraEarningForm ? 'Скрыть' : '+ Добавить')
+          ),
+          React.createElement('p', { className: 'text-xs text-black/50 mb-3' }, 'КП, создание конструкций и прочие доп. работы — вписываете сами.'),
+          showExtraEarningForm && React.createElement('div', { className: 'space-y-2 mb-3' },
+            React.createElement('input', { type: 'date', value: newExtraEarning.date, onChange: function (e) { setNewExtraEarning(Object.assign({}, newExtraEarning, { date: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
+            React.createElement('input', { type: 'text', placeholder: 'Описание (например: КП для отеля X)', value: newExtraEarning.description, onChange: function (e) { setNewExtraEarning(Object.assign({}, newExtraEarning, { description: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
+            React.createElement('input', { type: 'number', placeholder: 'Сумма, ₽', value: newExtraEarning.amount, onChange: function (e) { setNewExtraEarning(Object.assign({}, newExtraEarning, { amount: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
+            React.createElement('button', { onClick: function () { addExtraEarning(currentUser); }, className: 'w-full bg-black hover:bg-black/85 text-white py-2 rounded-lg text-sm font-medium' }, 'Сохранить')
+          ),
+          React.createElement('div', { className: 'space-y-1.5' },
+            myExtraEarnings.map(function (e) {
+              return React.createElement('div', { key: e.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
+                React.createElement('span', { className: 'text-black' }, new Date(e.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ' + (e.description || '—')),
+                React.createElement('div', { className: 'flex items-center gap-2' },
+                  React.createElement('span', { className: 'font-medium text-black' }, formatMoney(parseFloat(e.amount) || 0) + ' ₽'),
+                  React.createElement('button', { onClick: function () { removeExtraEarning(e.id); }, className: 'text-black/30 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
+                )
+              );
+            })
+          ),
+          myExtraEarnings.length > 0 && React.createElement('p', { className: 'text-xs text-black/40 mt-2 text-right' }, 'Итого доп. заработка: ' + formatMoney(myExtraTotal) + ' ₽')
+        )
+      )
     );
   }
 
-  return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-white border-b-2 border-black px-4 py-4 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <div className="bg-black p-2 rounded-lg"><Lock className="w-5 h-5 text-orange-500" /></div>
-          <div><div className="font-semibold text-black">Руководитель</div><div className="text-xs text-black/40 flex items-center gap-1.5">Вкус и Цвет {saving && <span className="text-orange-500">· сохранение…</span>}</div></div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={exportCSV} className="flex items-center gap-1.5 text-sm bg-black hover:bg-black/85 text-white px-3 py-2 rounded-lg"><Download className="w-4 h-4" />CSV</button>
-          <button onClick={() => { setCurrentUser(null); setPasswordInput(''); }} className="text-black/40 hover:text-orange-500 p-2"><LogOut className="w-5 h-5" /></button>
-        </div>
-      </div>
-
-      <div className="p-4 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-4 bg-white rounded-xl border-2 border-black p-3">
-          <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-orange-50 rounded-lg"><ChevronLeft className="w-5 h-5 text-black" /></button>
-          <div className="font-semibold text-black">{monthNames[viewMonth]} {viewYear}</div>
-          <button onClick={() => changeMonth(1)} className="p-2 hover:bg-orange-50 rounded-lg"><ChevronRight className="w-5 h-5 text-black" /></button>
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <h2 className="font-semibold text-black mb-1 flex items-center gap-2"><UserPlus className="w-4 h-4 text-orange-500" />Флористы — команда</h2>
-          <p className="text-xs text-black/40 mb-3">Переименуйте при смене ФИО, удалите при увольнении, добавьте при найме.</p>
-          <div className="space-y-2 mb-3">
-            {florists.map(f => (
-              <div key={f} className="flex items-center gap-2 bg-orange-50 rounded-lg px-3 py-2">
-                <input type="text" value={renameDrafts[f] ?? f} onChange={(e) => setRenameDrafts({ ...renameDrafts, [f]: e.target.value })}
-                  onKeyDown={(e) => { if (e.key !== 'Enter') return; const val = (renameDrafts[f] ?? f).trim(); if (val && val !== f) { renameFlorist(f, val); setRenameDrafts(prev => { const { [f]: _omit, ...rest } = prev; return rest; }); } }}
-                  className="flex-1 px-2 py-1.5 border-2 border-black rounded-md text-sm outline-none focus:border-orange-500 text-black" />
-                <button onClick={() => { const val = (renameDrafts[f] ?? f).trim(); if (val && val !== f) { renameFlorist(f, val); setRenameDrafts(prev => { const { [f]: _omit, ...rest } = prev; return rest; }); } }}
-                  disabled={!renameDrafts[f] || !renameDrafts[f].trim() || renameDrafts[f] === f}
-                  className="text-xs bg-black hover:bg-black/85 disabled:bg-black/10 disabled:text-black/30 text-white px-3 py-1.5 rounded-md font-medium shrink-0">Сохранить</button>
-                <button onClick={() => removeFlorist(f)} className="text-black/30 hover:text-orange-500 shrink-0" title="Уволить"><Trash2 className="w-4 h-4" /></button>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <input type="text" value={newFloristName} onChange={(e) => setNewFloristName(e.target.value)} placeholder="Имя нового флориста" className="flex-1 px-3 py-2 border-2 border-black rounded-lg text-sm outline-none focus:border-orange-500 text-black" />
-            <button onClick={() => { addFlorist(newFloristName); setNewFloristName(''); }} disabled={!newFloristName.trim() || florists.includes(newFloristName.trim())} className="bg-orange-500 hover:bg-orange-600 disabled:bg-black/10 disabled:text-black/30 text-white px-4 py-2 rounded-lg text-sm font-medium shrink-0">Добавить</button>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <h2 className="font-semibold text-black mb-3 flex items-center gap-2"><Calendar className="w-4 h-4 text-orange-500" />Расписания на утверждение</h2>
-          {(() => {
-            const relevant = florists.map(f => ({ florist: f, key: submissionKey(f, viewMonth, viewYear), sub: submissions[submissionKey(f, viewMonth, viewYear)] })).filter(x => x.sub);
-            if (relevant.length === 0) return <div className="text-sm text-black/40">Нет отправленных расписаний за этот месяц</div>;
-            return (
-              <div className="space-y-3">
-                {relevant.map(({ florist, key, sub }) => (
-                  <div key={key} className="border-2 border-black/10 rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-black">{florist}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sub.status === 'pending' ? 'bg-orange-100 text-orange-700' : sub.status === 'approved' ? 'bg-black text-white' : 'bg-orange-500 text-white'}`}>
-                        {sub.status === 'pending' ? 'На рассмотрении' : sub.status === 'approved' ? 'Утверждено' : 'Отклонено'}
-                      </span>
-                    </div>
-                    {sub.status === 'pending' ? (
-                      <div className="space-y-2">
-                        <textarea value={noteDrafts[key] || ''} onChange={(e) => setNoteDrafts({ ...noteDrafts, [key]: e.target.value })} placeholder="Примечание (необязательно)" className="w-full px-3 py-2 border-2 border-black rounded-lg text-sm outline-none focus:border-orange-500 text-black resize-none" rows={2} />
-                        <div className="flex gap-2">
-                          <button onClick={() => decideSubmission(florist, 'approved')} className="flex-1 bg-black hover:bg-black/85 text-white py-2 rounded-lg text-sm font-medium">Принять</button>
-                          <button onClick={() => decideSubmission(florist, 'rejected')} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-sm font-medium">Отклонить</button>
-                        </div>
-                      </div>
-                    ) : (sub.note && <div className="text-xs text-black/50">Примечание: {sub.note}</div>)}
-                  </div>
-                ))}
-              </div>
+  return React.createElement('div', { className: 'min-h-screen bg-white' },
+    React.createElement('div', { className: 'bg-white border-b-2 border-black px-4 py-4 flex items-center justify-between sticky top-0 z-10' },
+      React.createElement('div', { className: 'flex items-center gap-2' },
+        React.createElement('div', { className: 'bg-black p-2 rounded-lg' }, React.createElement(Lock, { className: 'w-5 h-5 text-orange-500' })),
+        React.createElement('div', null,
+          React.createElement('div', { className: 'font-semibold text-black' }, 'Руководитель'),
+          React.createElement('div', { className: 'text-xs text-black/40 flex items-center gap-1.5' }, 'Вкус и Цвет', saving && React.createElement('span', { className: 'text-orange-500' }, '· сохранение…'))
+        )
+      ),
+      React.createElement('div', { className: 'flex items-center gap-2' },
+        React.createElement('button', { onClick: exportCSV, className: 'flex items-center gap-1.5 text-sm bg-black hover:bg-black/85 text-white px-3 py-2 rounded-lg' }, React.createElement(Download, { className: 'w-4 h-4' }), 'CSV'),
+        React.createElement('button', { onClick: function () { setCurrentUser(null); setPasswordInput(''); }, className: 'text-black/40 hover:text-orange-500 p-2' }, React.createElement(LogOut, { className: 'w-5 h-5' }))
+      )
+    ),
+    React.createElement('div', { className: 'p-4 max-w-6xl mx-auto' },
+      React.createElement('div', { className: 'flex items-center justify-between mb-4 bg-white rounded-xl border-2 border-black p-3' },
+        React.createElement('button', { onClick: function () { changeMonth(-1); }, className: 'p-2 hover:bg-orange-50 rounded-lg' }, React.createElement(ChevronLeft, { className: 'w-5 h-5 text-black' })),
+        React.createElement('div', { className: 'font-semibold text-black' }, monthNames[viewMonth] + ' ' + viewYear),
+        React.createElement('button', { onClick: function () { changeMonth(1); }, className: 'p-2 hover:bg-orange-50 rounded-lg' }, React.createElement(ChevronRight, { className: 'w-5 h-5 text-black' }))
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(UserPlus, { className: 'w-4 h-4 text-orange-500' }), 'Флористы — команда'),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Переименуйте при смене ФИО, удалите при увольнении, добавьте при найме.'),
+        React.createElement('div', { className: 'space-y-2 mb-3' },
+          florists.map(function (f) {
+            return React.createElement('div', { key: f, className: 'flex items-center gap-2 bg-orange-50 rounded-lg px-3 py-2' },
+              React.createElement('input', {
+                type: 'text', value: renameDrafts[f] != null ? renameDrafts[f] : f,
+                onChange: function (e) { var nd = Object.assign({}, renameDrafts); nd[f] = e.target.value; setRenameDrafts(nd); },
+                onKeyDown: function (e) {
+                  if (e.key !== 'Enter') return;
+                  var val = (renameDrafts[f] != null ? renameDrafts[f] : f).trim();
+                  if (val && val !== f) {
+                    renameFlorist(f, val);
+                    var nd = Object.assign({}, renameDrafts); delete nd[f]; setRenameDrafts(nd);
+                  }
+                },
+                className: 'flex-1 px-2 py-1.5 border-2 border-black rounded-md text-sm outline-none focus:border-orange-500 text-black'
+              }),
+              React.createElement('button', {
+                onClick: function () {
+                  var val = (renameDrafts[f] != null ? renameDrafts[f] : f).trim();
+                  if (val && val !== f) {
+                    renameFlorist(f, val);
+                    var nd = Object.assign({}, renameDrafts); delete nd[f]; setRenameDrafts(nd);
+                  }
+                },
+                disabled: !renameDrafts[f] || !renameDrafts[f].trim() || renameDrafts[f] === f,
+                className: 'text-xs bg-black hover:bg-black/85 disabled:bg-black/10 disabled:text-black/30 text-white px-3 py-1.5 rounded-md font-medium shrink-0'
+              }, 'Сохранить'),
+              React.createElement('button', { onClick: function () { removeFlorist(f); }, className: 'text-black/30 hover:text-orange-500 shrink-0', title: 'Уволить' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
             );
-          })()}
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="font-semibold text-black flex items-center gap-2"><Lock className="w-4 h-4 text-orange-500" />Пароли</h2>
-            <button onClick={() => setShowPasswordSettings(!showPasswordSettings)} className="text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium">{showPasswordSettings ? 'Скрыть' : 'Изменить'}</button>
-          </div>
-          <p className="text-xs text-black/40 mb-3">6 цифр на каждого. Резервный пароль руководителя: {MANAGER_BACKUP_PASSWORD}.</p>
-          {showPasswordSettings && (
-            <div className="space-y-2">
-              {['manager', ...florists].map(profile => (
-                <div key={profile} className="flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2">
-                  <span className="text-sm text-black">{profile === 'manager' ? 'Руководитель' : profile}</span>
-                  <div className="flex items-center gap-2">
-                    <input type="text" inputMode="numeric" maxLength={6} placeholder={passwords[profile]} value={newPasswordDrafts[profile] || ''} onChange={(e) => setNewPasswordDrafts({ ...newPasswordDrafts, [profile]: e.target.value.replace(/\D/g, '').slice(0, 6) })} className="w-24 px-2 py-1.5 border-2 border-black rounded-md text-sm text-center tracking-widest outline-none focus:border-orange-500 text-black" />
-                    <button onClick={() => savePassword(profile)} disabled={!newPasswordDrafts[profile] || newPasswordDrafts[profile].length !== 6} className="text-xs bg-orange-500 hover:bg-orange-600 disabled:bg-black/10 disabled:text-black/30 text-white px-3 py-1.5 rounded-md font-medium">Сохранить</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <h2 className="font-semibold text-black mb-1 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500" />Ставка за смену (выход)</h2>
-          <p className="text-xs text-black/40 mb-3">Не применяется к флористу на фиксированном окладе ({adminFloristName}).</p>
-          <div className="flex items-center justify-between bg-orange-500 rounded-lg px-3 py-2 mb-2">
-            <span className="text-sm text-white font-medium">Оклад — {adminFloristName}, ₽/мес</span>
-            <input type="number" value={adminSalary} onChange={(e) => setAdminSalary(parseFloat(e.target.value) || 0)} className="w-24 px-2 py-1 border-2 border-white rounded-md text-sm text-right outline-none bg-orange-500 text-white placeholder-white/60" />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {florists.filter(f => f !== adminFloristName).map(f => (
-              <div key={f} className="flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2">
-                <span className="text-sm text-black">{f}</span>
-                <input type="number" value={shiftRates[f] ?? DEFAULT_SHIFT_RATE} onChange={(e) => setShiftRates({ ...shiftRates, [f]: parseFloat(e.target.value) || 0 })} className="w-20 px-2 py-1 border-2 border-black rounded-md text-sm text-right outline-none focus:border-orange-500 text-black" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <h2 className="font-semibold text-black mb-3 flex items-center gap-2"><Calendar className="w-4 h-4 text-orange-500" />Рабочие дни флористов</h2>
-          <div className="overflow-x-auto">
-            {(() => {
-              const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-              const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-              return (
-                <table className="text-xs border-collapse">
-                  <thead><tr><th className="sticky left-0 bg-white px-2 py-1 text-left text-black/50 border-b-2 border-black">Флорист</th>{days.map(d => <th key={d} className="px-1.5 py-1 text-black/30 font-normal border-b-2 border-black min-w-6">{d}</th>)}</tr></thead>
-                  <tbody>
-                    {florists.map(f => (
-                      <tr key={f}>
-                        <td className="sticky left-0 bg-white px-2 py-1 font-medium text-black border-b border-black/10">{f}</td>
-                        {days.map(d => { const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`; const working = isWorkDay(f, dateStr); return <td key={d} className="text-center border-b border-black/10 py-1">{working && <span className="inline-block w-3 h-3 bg-orange-500 rounded-full" />}</td>; })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          })
+        ),
+        React.createElement('div', { className: 'flex items-center gap-2' },
+          React.createElement('input', { type: 'text', value: newFloristName, onChange: function (e) { setNewFloristName(e.target.value); }, placeholder: 'Имя нового флориста', className: 'flex-1 px-3 py-2 border-2 border-black rounded-lg text-sm outline-none focus:border-orange-500 text-black' }),
+          React.createElement('button', {
+            onClick: function () { addFlorist(newFloristName); setNewFloristName(''); },
+            disabled: !newFloristName.trim() || florists.indexOf(newFloristName.trim()) !== -1,
+            className: 'bg-orange-500 hover:bg-orange-600 disabled:bg-black/10 disabled:text-black/30 text-white px-4 py-2 rounded-lg text-sm font-medium shrink-0'
+          }, 'Добавить')
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-black mb-3 flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Расписания на утверждение'),
+        (function () {
+          var relevant = florists.map(function (f) { return { florist: f, key: submissionKey(f, viewMonth, viewYear), sub: submissions[submissionKey(f, viewMonth, viewYear)] }; }).filter(function (x) { return x.sub; });
+          if (relevant.length === 0) return React.createElement('div', { className: 'text-sm text-black/40' }, 'Нет отправленных расписаний за этот месяц');
+          return React.createElement('div', { className: 'space-y-3' },
+            relevant.map(function (item) {
+              var florist = item.florist, key = item.key, sub = item.sub;
+              return React.createElement('div', { key: key, className: 'border-2 border-black/10 rounded-xl p-3' },
+                React.createElement('div', { className: 'flex items-center justify-between mb-2' },
+                  React.createElement('span', { className: 'font-medium text-black' }, florist),
+                  React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full font-medium ' + (sub.status === 'pending' ? 'bg-orange-100 text-orange-700' : sub.status === 'approved' ? 'bg-black text-white' : 'bg-orange-500 text-white') },
+                    sub.status === 'pending' ? 'На рассмотрении' : sub.status === 'approved' ? 'Утверждено' : 'Отклонено')
+                ),
+                sub.status === 'pending'
+                  ? React.createElement('div', { className: 'space-y-2' },
+                      React.createElement('textarea', {
+                        value: noteDrafts[key] || '', onChange: function (e) { var nd = Object.assign({}, noteDrafts); nd[key] = e.target.value; setNoteDrafts(nd); },
+                        placeholder: 'Примечание (необязательно)', className: 'w-full px-3 py-2 border-2 border-black rounded-lg text-sm outline-none focus:border-orange-500 text-black resize-none', rows: 2
+                      }),
+                      React.createElement('div', { className: 'flex gap-2' },
+                        React.createElement('button', { onClick: function () { decideSubmission(florist, 'approved'); }, className: 'flex-1 bg-black hover:bg-black/85 text-white py-2 rounded-lg text-sm font-medium' }, 'Принять'),
+                        React.createElement('button', { onClick: function () { decideSubmission(florist, 'rejected'); }, className: 'flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-sm font-medium' }, 'Отклонить')
+                      )
+                    )
+                  : (sub.note && React.createElement('div', { className: 'text-xs text-black/50' }, 'Примечание: ' + sub.note))
               );
-            })()}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-black flex items-center gap-2"><Calendar className="w-4 h-4 text-orange-500" />Общее расписание по отелям</h2>
-            <select value={filterFlorist} onChange={(e) => setFilterFlorist(e.target.value)} className="text-sm border-2 border-black rounded-lg px-2 py-1.5 outline-none text-black">
-              <option value="all">Все флористы</option>{florists.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </div>
-          {(() => {
-            const firstDay = new Date(viewYear, viewMonth, 1);
-            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-            let startWeekday = firstDay.getDay(); startWeekday = startWeekday === 0 ? 6 : startWeekday - 1;
-            const cells = []; for (let i = 0; i < startWeekday; i++) cells.push(null); for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-            const eventsByDay = {};
-            monthBookings.forEach(b => { if (filterFlorist !== 'all' && b.florist !== filterFlorist) return; const day = parseInt(b.date.slice(8, 10), 10); if (!eventsByDay[day]) eventsByDay[day] = []; eventsByDay[day].push({ label: `${b.florist}: ${b.hotel.split(' ')[0]}`, title: `${b.florist} — ${b.hotel} (${b.visitType === 'zamena' ? 'Замена' : 'Рефреш'})` }); });
-            monthOnetimes.forEach(o => { if (filterFlorist !== 'all' && o.florist !== filterFlorist) return; const day = parseInt(o.date.slice(8, 10), 10); if (!eventsByDay[day]) eventsByDay[day] = []; eventsByDay[day].push({ label: `${o.florist}: ${o.projectName || 'Разовое'}`, title: `${o.florist} — ${o.projectName || 'Разовое'}` }); });
-            return (
-              <div>
-                <div className="grid grid-cols-7 gap-1.5 mb-1.5 text-xs text-black/40 font-medium text-center">{WEEKDAYS.map(d => <div key={d}>{d}</div>)}</div>
-                <div className="grid grid-cols-7 gap-1.5">
-                  {cells.map((day, idx) => (
-                    <div key={idx} className={`min-h-20 rounded-lg border p-1.5 ${day ? 'bg-white border-black/10' : 'border-transparent'}`}>
-                      {day && (<><div className="text-xs text-black/40 mb-1">{day}</div><div className="space-y-0.5">
-                        {(eventsByDay[day] || []).slice(0, 3).map((ev, i) => <div key={i} title={ev.title} className="text-[10px] leading-tight px-1 py-0.5 rounded truncate bg-orange-100 text-orange-700">{ev.label}</div>)}
-                        {(eventsByDay[day] || []).length > 3 && <div className="text-[10px] text-black/40 px-1">+{eventsByDay[day].length - 3} ещё</div>}
-                      </div></>)}
-                    </div>
-                  ))}
-                </div>
-              </div>
+            })
+          );
+        })()
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-1' },
+          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Lock, { className: 'w-4 h-4 text-orange-500' }), 'Пароли'),
+          React.createElement('button', { onClick: function () { setShowPasswordSettings(!showPasswordSettings); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showPasswordSettings ? 'Скрыть' : 'Изменить')
+        ),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, '6 цифр на каждого. Резервный пароль руководителя: ' + MANAGER_BACKUP_PASSWORD + '.'),
+        showPasswordSettings && React.createElement('div', { className: 'space-y-2' },
+          ['manager'].concat(florists).map(function (profile) {
+            return React.createElement('div', { key: profile, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2' },
+              React.createElement('span', { className: 'text-sm text-black' }, profile === 'manager' ? 'Руководитель' : profile),
+              React.createElement('div', { className: 'flex items-center gap-2' },
+                React.createElement('input', {
+                  type: 'text', inputMode: 'numeric', maxLength: 6, placeholder: passwords[profile],
+                  value: newPasswordDrafts[profile] || '',
+                  onChange: function (e) { var np = Object.assign({}, newPasswordDrafts); np[profile] = e.target.value.replace(/\D/g, '').slice(0, 6); setNewPasswordDrafts(np); },
+                  className: 'w-24 px-2 py-1.5 border-2 border-black rounded-md text-sm text-center tracking-widest outline-none focus:border-orange-500 text-black'
+                }),
+                React.createElement('button', {
+                  onClick: function () { savePassword(profile); },
+                  disabled: !newPasswordDrafts[profile] || newPasswordDrafts[profile].length !== 6,
+                  className: 'text-xs bg-orange-500 hover:bg-orange-600 disabled:bg-black/10 disabled:text-black/30 text-white px-3 py-1.5 rounded-md font-medium'
+                }, 'Сохранить')
+              )
             );
-          })()}
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <h2 className="font-semibold text-black mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500" />Зарплата по типам</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-black/50 border-b-2 border-black"><th className="py-2 pr-3">Флорист</th><th className="py-2 pr-3 text-right">Смены</th><th className="py-2 pr-3 text-right">Замены</th><th className="py-2 pr-3 text-right">Рефреши</th><th className="py-2 text-right">Доп</th></tr></thead>
-              <tbody>
-                {Object.entries(payrollByFlorist).filter(([, d]) => d.count > 0 || d.shifts > 0 || d.extra > 0).map(([name, d]) => (
-                  <tr key={name} className="border-b border-black/10">
-                    <td className="py-2 pr-3 font-medium text-black">{name}</td>
-                    <td className="py-2 pr-3 text-right text-black">{formatMoney(d.shiftPay)} ₽</td>
-                    <td className="py-2 pr-3 text-right text-black">{formatMoney(d.zamena)} ₽</td>
-                    <td className="py-2 pr-3 text-right text-black">{formatMoney(d.refresh)} ₽</td>
-                    <td className="py-2 text-right text-black">{formatMoney(d.extra)} ₽</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <h2 className="font-semibold text-black mb-1 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500" />Корректировка смены (неполный день)</h2>
-          <p className="text-xs text-black/40 mb-3">Задайте процент от ставки за смену для конкретной даты.</p>
-          {monthWorkDays.filter(w => w.florist !== adminFloristName).length === 0 ? <div className="text-sm text-black/40">Нет отмеченных смен в этом месяце</div> : (
-            <div className="space-y-1.5">
-              {monthWorkDays.filter(w => w.florist !== adminFloristName).sort((a, b) => a.date.localeCompare(b.date)).map(w => {
-                const baseRate = shiftRates[w.florist] ?? DEFAULT_SHIFT_RATE;
-                const pct = w.percent ?? 100;
-                return (
-                  <div key={w.id} className="flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm">
-                    <span className="text-black">{new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · <b>{w.florist}</b></span>
-                    <div className="flex items-center gap-2">
-                      <input type="number" value={pct} onChange={(e) => setWorkDayPercent(w.florist, w.date, parseFloat(e.target.value) || 0)} className="w-16 px-2 py-1 border-2 border-black rounded-md text-right text-sm outline-none focus:border-orange-500 text-black" />
-                      <span className="text-black/40 text-xs">%</span>
-                      <span className="text-black font-medium w-20 text-right">{formatMoney(baseRate * (pct / 100))} ₽</span>
-                    </div>
-                  </div>
+          })
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Ставка за смену (выход)'),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Не применяется к флористу на фиксированном окладе (' + adminFloristName + ').'),
+        React.createElement('div', { className: 'flex items-center justify-between bg-orange-500 rounded-lg px-3 py-2 mb-2' },
+          React.createElement('span', { className: 'text-sm text-white font-medium' }, 'Оклад — ' + adminFloristName + ', ₽/мес'),
+          React.createElement('input', { type: 'number', value: adminSalary, onChange: function (e) { setAdminSalary(parseFloat(e.target.value) || 0); }, className: 'w-24 px-2 py-1 border-2 border-white rounded-md text-sm text-right outline-none bg-orange-500 text-white placeholder-white/60' })
+        ),
+        React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-3 gap-2' },
+          florists.filter(function (f) { return f !== adminFloristName; }).map(function (f) {
+            return React.createElement('div', { key: f, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2' },
+              React.createElement('span', { className: 'text-sm text-black' }, f),
+              React.createElement('input', {
+                type: 'number', value: shiftRates[f] != null ? shiftRates[f] : DEFAULT_SHIFT_RATE,
+                onChange: function (e) { var sr = Object.assign({}, shiftRates); sr[f] = parseFloat(e.target.value) || 0; setShiftRates(sr); },
+                className: 'w-20 px-2 py-1 border-2 border-black rounded-md text-sm text-right outline-none focus:border-orange-500 text-black'
+              })
+            );
+          })
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-black mb-3 flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Рабочие дни флористов'),
+        React.createElement('div', { className: 'overflow-x-auto' },
+          (function () {
+            var daysInMonth2 = new Date(viewYear, viewMonth + 1, 0).getDate();
+            var days = [];
+            for (var dd = 1; dd <= daysInMonth2; dd++) days.push(dd);
+            return React.createElement('table', { className: 'text-xs border-collapse' },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  React.createElement('th', { className: 'sticky left-0 bg-white px-2 py-1 text-left text-black/50 border-b-2 border-black' }, 'Флорист'),
+                  days.map(function (dd) { return React.createElement('th', { key: dd, className: 'px-1.5 py-1 text-black/30 font-normal border-b-2 border-black min-w-6' }, dd); })
+                )
+              ),
+              React.createElement('tbody', null,
+                florists.map(function (f) {
+                  return React.createElement('tr', { key: f },
+                    React.createElement('td', { className: 'sticky left-0 bg-white px-2 py-1 font-medium text-black border-b border-black/10' }, f),
+                    days.map(function (dd) {
+                      var dateStr = viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+                      var working = isWorkDay(f, dateStr);
+                      return React.createElement('td', { key: dd, className: 'text-center border-b border-black/10 py-1' }, working && React.createElement('span', { className: 'inline-block w-3 h-3 bg-orange-500 rounded-full' }));
+                    })
+                  );
+                })
+              )
+            );
+          })()
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-3' },
+          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Общее расписание по отелям'),
+          React.createElement('select', { value: filterFlorist, onChange: function (e) { setFilterFlorist(e.target.value); }, className: 'text-sm border-2 border-black rounded-lg px-2 py-1.5 outline-none text-black' },
+            React.createElement('option', { value: 'all' }, 'Все флористы'),
+            florists.map(function (f) { return React.createElement('option', { key: f, value: f }, f); })
+          )
+        ),
+        (function () {
+          var firstDay2 = new Date(viewYear, viewMonth, 1);
+          var daysInMonth3 = new Date(viewYear, viewMonth + 1, 0).getDate();
+          var startWeekday2 = firstDay2.getDay(); startWeekday2 = startWeekday2 === 0 ? 6 : startWeekday2 - 1;
+          var cells2 = [];
+          for (var ii = 0; ii < startWeekday2; ii++) cells2.push(null);
+          for (var dd2 = 1; dd2 <= daysInMonth3; dd2++) cells2.push(dd2);
+          var eventsByDay = {};
+          monthBookings.forEach(function (b) {
+            if (filterFlorist !== 'all' && b.florist !== filterFlorist) return;
+            var day = parseInt(b.date.slice(8, 10), 10);
+            if (!eventsByDay[day]) eventsByDay[day] = [];
+            eventsByDay[day].push({ label: b.florist + ': ' + b.hotel.split(' ')[0], title: b.florist + ' — ' + b.hotel + ' (' + (b.visitType === 'zamena' ? 'Замена' : 'Рефреш') + ')' });
+          });
+          monthOnetimes.forEach(function (o) {
+            if (filterFlorist !== 'all' && o.florist !== filterFlorist) return;
+            var day = parseInt(o.date.slice(8, 10), 10);
+            if (!eventsByDay[day]) eventsByDay[day] = [];
+            eventsByDay[day].push({ label: o.florist + ': ' + (o.projectName || 'Разовое'), title: o.florist + ' — ' + (o.projectName || 'Разовое') });
+          });
+          return React.createElement('div', null,
+            React.createElement('div', { className: 'grid grid-cols-7 gap-1.5 mb-1.5 text-xs text-black/40 font-medium text-center' }, WEEKDAYS.map(function (w) { return React.createElement('div', { key: w }, w); })),
+            React.createElement('div', { className: 'grid grid-cols-7 gap-1.5' },
+              cells2.map(function (day, idx) {
+                return React.createElement('div', { key: idx, className: 'min-h-20 rounded-lg border p-1.5 ' + (day ? 'bg-white border-black/10' : 'border-transparent') },
+                  day && React.createElement(React.Fragment, null,
+                    React.createElement('div', { className: 'text-xs text-black/40 mb-1' }, day),
+                    React.createElement('div', { className: 'space-y-0.5' },
+                      (eventsByDay[day] || []).slice(0, 3).map(function (ev, i2) {
+                        return React.createElement('div', { key: i2, title: ev.title, className: 'text-[10px] leading-tight px-1 py-0.5 rounded truncate bg-orange-100 text-orange-700' }, ev.label);
+                      }),
+                      (eventsByDay[day] || []).length > 3 && React.createElement('div', { className: 'text-[10px] text-black/40 px-1' }, '+' + ((eventsByDay[day] || []).length - 3) + ' ещё')
+                    )
+                  )
                 );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-black rounded-xl p-4 mb-4 flex items-center justify-between">
-          <span className="text-white font-medium">Итого зарплата за {monthNames[viewMonth]}</span>
-          <span className="text-orange-500 font-bold text-lg">{formatMoney(grandTotal)} ₽</span>
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-black flex items-center gap-2"><Building2 className="w-4 h-4 text-orange-500" />Cosmos Nevsky — открыть дату для флористов</h2>
-            <button onClick={() => setShowManualSlotForm(!showManualSlotForm)} className="text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium">{showManualSlotForm ? 'Скрыть' : '+ Открыть слот'}</button>
-          </div>
-          <p className="text-xs text-black/40 mb-2">У этого отеля нет фиксированного графика — даты назначаются вручную.</p>
-          {showManualSlotForm && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-              <input type="date" value={newManualSlot.date} onChange={(e) => setNewManualSlot({ ...newManualSlot, date: e.target.value })} className="px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black" />
-              <select value={newManualSlot.visitType} onChange={(e) => setNewManualSlot({ ...newManualSlot, visitType: e.target.value })} className="px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black">
-                <option value="zamena">Замена</option><option value="refresh">Рефреш</option>
-              </select>
-              <button onClick={addManualSlot} className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium col-span-2 md:col-span-2">Открыть слот</button>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {manualSlots.filter(ms => { const d = new Date(ms.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }).map(ms => (
-              <div key={ms.id} className="flex items-center gap-2 bg-orange-50 text-orange-700 text-xs px-3 py-1.5 rounded-full border border-orange-300">
-                {new Date(ms.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · {ms.visitType === 'zamena' ? 'Замена' : 'Рефреш'}
-                <button onClick={() => setManualSlots(manualSlots.filter(x => x.id !== ms.id))}><X className="w-3 h-3" /></button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-black flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" />Разовые оформления</h2>
-            <button onClick={() => setShowOnetimeForm(!showOnetimeForm)} className="text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium">{showOnetimeForm ? 'Скрыть' : '+ Добавить'}</button>
-          </div>
-          {showOnetimeForm && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-              <input type="date" value={newOnetime.date} onChange={(e) => setNewOnetime({ ...newOnetime, date: e.target.value })} className="px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black" />
-              <select value={newOnetime.florist} onChange={(e) => setNewOnetime({ ...newOnetime, florist: e.target.value })} className="px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black">{florists.map(f => <option key={f} value={f}>{f}</option>)}</select>
-              <input type="text" placeholder="Проект" value={newOnetime.projectName} onChange={(e) => setNewOnetime({ ...newOnetime, projectName: e.target.value })} className="px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black" />
-              <input type="number" placeholder="Ставка, ₽" value={newOnetime.rate} onChange={(e) => setNewOnetime({ ...newOnetime, rate: e.target.value })} className="px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black" />
-              <button onClick={addOnetime} className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium col-span-2 md:col-span-4">Добавить</button>
-            </div>
-          )}
-          <div className="space-y-1.5">
-            {monthOnetimes.map(o => (
-              <div key={o.id} className="flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm">
-                <span className="text-black">{new Date(o.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · <b>{o.florist}</b> · {o.projectName || '—'}</span>
-                <div className="flex items-center gap-3">
-                  <span className="font-medium text-black">{formatMoney(parseFloat(o.rate) || 0)} ₽</span>
-                  <button onClick={() => removeOnetime(o.id)} className="text-black/30 hover:text-orange-500"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black overflow-hidden">
-          <div className="p-4 border-b-2 border-black"><h2 className="font-semibold text-black">Все записи на выезды</h2></div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="bg-orange-50 text-left text-black/60"><th className="px-4 py-2">Дата</th><th className="px-4 py-2">Флорист</th><th className="px-4 py-2">Отель</th><th className="px-4 py-2">Тип</th><th className="px-4 py-2 text-right">Сумма</th><th className="px-4 py-2 w-10"></th></tr></thead>
-              <tbody>
-                {monthBookings.length === 0 && <tr><td colSpan={6} className="text-center text-black/40 py-8">Нет записей</td></tr>}
-                {monthBookings.filter(b => filterFlorist === 'all' || b.florist === filterFlorist).sort((a, b) => a.date.localeCompare(b.date)).map(b => (
-                  <tr key={b.id} className="border-t border-black/10 hover:bg-orange-50">
-                    <td className="px-4 py-2 text-black/70">{new Date(b.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}</td>
-                    <td className="px-4 py-2 font-medium text-black">{b.florist}</td>
-                    <td className="px-4 py-2 text-black/70">{b.hotel}</td>
-                    <td className="px-4 py-2"><span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">{b.visitType === 'zamena' ? 'Замена' : 'Рефреш'}</span></td>
-                    <td className="px-4 py-2 text-right font-medium text-black">{formatMoney(getRate(b.hotel, b.visitType))} ₽</td>
-                    <td className="px-4 py-2"><button onClick={() => removeBooking(b.id)} className="text-black/30 hover:text-orange-500"><Trash2 className="w-4 h-4" /></button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border-2 border-black p-4 mt-4">
-          <h2 className="font-semibold text-black mb-3 flex items-center gap-2"><Building2 className="w-4 h-4 text-orange-500" />Тарифы и график по отелям</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-            {HOTELS.map(h => (
-              <div key={h.name} className="bg-orange-50 rounded-lg px-3 py-2">
-                <div className="text-black font-medium">{h.name}</div>
-                <div className="text-black/50 text-xs mt-0.5">
-                  Замена: <b className="text-black">{formatMoney(h.zamena)}₽</b>{h.zamenaDay !== null && <span> ({WEEKDAYS[h.zamenaDay]})</span>}
-                  {h.refresh && <> · Рефреш: <b className="text-black">{formatMoney(h.refresh)}₽</b>{h.refreshDay !== null && <span> ({WEEKDAYS[h.refreshDay]})</span>}</>}
-                  {h.manual && <span className="text-orange-600"> · даты вручную</span>}
-                  <span> · до {h.maxPerSlot} чел.</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+              })
+            )
+          );
+        })()
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-black mb-3 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Зарплата по типам'),
+        React.createElement('div', { className: 'overflow-x-auto' },
+          React.createElement('table', { className: 'w-full text-sm' },
+            React.createElement('thead', null,
+              React.createElement('tr', { className: 'text-left text-black/50 border-b-2 border-black' },
+                React.createElement('th', { className: 'py-2 pr-3' }, 'Флорист'),
+                React.createElement('th', { className: 'py-2 pr-3 text-right' }, 'Смены'),
+                React.createElement('th', { className: 'py-2 pr-3 text-right' }, 'Замены'),
+                React.createElement('th', { className: 'py-2 pr-3 text-right' }, 'Рефреши'),
+                React.createElement('th', { className: 'py-2 text-right' }, 'Доп')
+              )
+            ),
+            React.createElement('tbody', null,
+              Object.keys(payrollByFlorist).filter(function (name) { var d = payrollByFlorist[name]; return d.count > 0 || d.shifts > 0 || d.extra > 0; }).map(function (name) {
+                var d = payrollByFlorist[name];
+                return React.createElement('tr', { key: name, className: 'border-b border-black/10' },
+                  React.createElement('td', { className: 'py-2 pr-3 font-medium text-black' }, name),
+                  React.createElement('td', { className: 'py-2 pr-3 text-right text-black' }, formatMoney(d.shiftPay) + ' ₽'),
+                  React.createElement('td', { className: 'py-2 pr-3 text-right text-black' }, formatMoney(d.zamena) + ' ₽'),
+                  React.createElement('td', { className: 'py-2 pr-3 text-right text-black' }, formatMoney(d.refresh) + ' ₽'),
+                  React.createElement('td', { className: 'py-2 text-right text-black' }, formatMoney(d.extra) + ' ₽')
+                );
+              })
+            )
+          )
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Корректировка смены (неполный день)'),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Задайте процент от ставки за смену для конкретной даты.'),
+        monthWorkDays.filter(function (w) { return w.florist !== adminFloristName; }).length === 0
+          ? React.createElement('div', { className: 'text-sm text-black/40' }, 'Нет отмеченных смен в этом месяце')
+          : React.createElement('div', { className: 'space-y-1.5' },
+              monthWorkDays.filter(function (w) { return w.florist !== adminFloristName; }).sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (w) {
+                var baseRate = shiftRates[w.florist] != null ? shiftRates[w.florist] : DEFAULT_SHIFT_RATE;
+                var pct = w.percent != null ? w.percent : 100;
+                return React.createElement('div', { key: w.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
+                  React.createElement('span', { className: 'text-black' }, new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ', React.createElement('b', null, w.florist)),
+                  React.createElement('div', { className: 'flex items-center gap-2' },
+                    React.createElement('input', { type: 'number', value: pct, onChange: function (e) { setWorkDayPercent(w.florist, w.date, parseFloat(e.target.value) || 0); }, className: 'w-16 px-2 py-1 border-2 border-black rounded-md text-right text-sm outline-none focus:border-orange-500 text-black' }),
+                    React.createElement('span', { className: 'text-black/40 text-xs' }, '%'),
+                    React.createElement('span', { className: 'text-black font-medium w-20 text-right' }, formatMoney(baseRate * (pct / 100)) + ' ₽')
+                  )
+                );
+              })
+            )
+      ),
+      React.createElement('div', { className: 'bg-black rounded-xl p-4 mb-4 flex items-center justify-between' },
+        React.createElement('span', { className: 'text-white font-medium' }, 'Итого зарплата за ' + monthNames[viewMonth]),
+        React.createElement('span', { className: 'text-orange-500 font-bold text-lg' }, formatMoney(grandTotal) + ' ₽')
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-3' },
+          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Cosmos Nevsky — открыть дату для флористов'),
+          React.createElement('button', { onClick: function () { setShowManualSlotForm(!showManualSlotForm); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showManualSlotForm ? 'Скрыть' : '+ Открыть слот')
+        ),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-2' }, 'У этого отеля нет фиксированного графика — даты назначаются вручную.'),
+        showManualSlotForm && React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2 mb-3' },
+          React.createElement('input', { type: 'date', value: newManualSlot.date, onChange: function (e) { setNewManualSlot(Object.assign({}, newManualSlot, { date: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
+          React.createElement('select', { value: newManualSlot.visitType, onChange: function (e) { setNewManualSlot(Object.assign({}, newManualSlot, { visitType: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+            React.createElement('option', { value: 'zamena' }, 'Замена'),
+            React.createElement('option', { value: 'refresh' }, 'Рефреш')
+          ),
+          React.createElement('button', { onClick: addManualSlot, className: 'bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium col-span-2 md:col-span-2' }, 'Открыть слот')
+        ),
+        React.createElement('div', { className: 'flex flex-wrap gap-2' },
+          manualSlots.filter(function (ms) { var d = new Date(ms.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }).map(function (ms) {
+            return React.createElement('div', { key: ms.id, className: 'flex items-center gap-2 bg-orange-50 text-orange-700 text-xs px-3 py-1.5 rounded-full border border-orange-300' },
+              new Date(ms.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ' + (ms.visitType === 'zamena' ? 'Замена' : 'Рефреш'),
+              React.createElement('button', { onClick: function () { setManualSlots(manualSlots.filter(function (x) { return x.id !== ms.id; })); } }, React.createElement(X, { className: 'w-3 h-3' }))
+            );
+          })
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-3' },
+          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Sparkles, { className: 'w-4 h-4 text-orange-500' }), 'Разовые оформления'),
+          React.createElement('button', { onClick: function () { setShowOnetimeForm(!showOnetimeForm); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showOnetimeForm ? 'Скрыть' : '+ Добавить')
+        ),
+        showOnetimeForm && React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2 mb-3' },
+          React.createElement('input', { type: 'date', value: newOnetime.date, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { date: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
+          React.createElement('select', { value: newOnetime.florist, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { florist: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+            florists.map(function (f) { return React.createElement('option', { key: f, value: f }, f); })
+          ),
+          React.createElement('input', { type: 'text', placeholder: 'Проект', value: newOnetime.projectName, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { projectName: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
+          React.createElement('input', { type: 'number', placeholder: 'Ставка, ₽', value: newOnetime.rate, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { rate: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
+          React.createElement('button', { onClick: addOnetime, className: 'bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium col-span-2 md:col-span-4' }, 'Добавить')
+        ),
+        React.createElement('div', { className: 'space-y-1.5' },
+          monthOnetimes.map(function (o) {
+            return React.createElement('div', { key: o.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
+              React.createElement('span', { className: 'text-black' }, new Date(o.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ', React.createElement('b', null, o.florist), ' · ' + (o.projectName || '—')),
+              React.createElement('div', { className: 'flex items-center gap-3' },
+                React.createElement('span', { className: 'font-medium text-black' }, formatMoney(parseFloat(o.rate) || 0) + ' ₽'),
+                React.createElement('button', { onClick: function () { removeOnetime(o.id); }, className: 'text-black/30 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
+              )
+            );
+          })
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black overflow-hidden' },
+        React.createElement('div', { className: 'p-4 border-b-2 border-black' }, React.createElement('h2', { className: 'font-semibold text-black' }, 'Все записи на выезды')),
+        React.createElement('div', { className: 'overflow-x-auto' },
+          React.createElement('table', { className: 'w-full text-sm' },
+            React.createElement('thead', null,
+              React.createElement('tr', { className: 'bg-orange-50 text-left text-black/60' },
+                React.createElement('th', { className: 'px-4 py-2' }, 'Дата'),
+                React.createElement('th', { className: 'px-4 py-2' }, 'Флорист'),
+                React.createElement('th', { className: 'px-4 py-2' }, 'Отель'),
+                React.createElement('th', { className: 'px-4 py-2' }, 'Тип'),
+                React.createElement('th', { className: 'px-4 py-2 text-right' }, 'Сумма'),
+                React.createElement('th', { className: 'px-4 py-2 w-10' })
+              )
+            ),
+            React.createElement('tbody', null,
+              monthBookings.length === 0 && React.createElement('tr', null, React.createElement('td', { colSpan: 6, className: 'text-center text-black/40 py-8' }, 'Нет записей')),
+              monthBookings.filter(function (b) { return filterFlorist === 'all' || b.florist === filterFlorist; }).sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (b) {
+                return React.createElement('tr', { key: b.id, className: 'border-t border-black/10 hover:bg-orange-50' },
+                  React.createElement('td', { className: 'px-4 py-2 text-black/70' }, new Date(b.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })),
+                  React.createElement('td', { className: 'px-4 py-2 font-medium text-black' }, b.florist),
+                  React.createElement('td', { className: 'px-4 py-2 text-black/70' }, b.hotel),
+                  React.createElement('td', { className: 'px-4 py-2' }, React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700' }, b.visitType === 'zamena' ? 'Замена' : 'Рефреш')),
+                  React.createElement('td', { className: 'px-4 py-2 text-right font-medium text-black' }, formatMoney(getRate(b.hotel, b.visitType)) + ' ₽'),
+                  React.createElement('td', { className: 'px-4 py-2' }, React.createElement('button', { onClick: function () { removeBooking(b.id); }, className: 'text-black/30 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' })))
+                );
+              })
+            )
+          )
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mt-4' },
+        React.createElement('h2', { className: 'font-semibold text-black mb-3 flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Тарифы и график по отелям'),
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-2 text-sm' },
+          HOTELS.map(function (h) {
+            return React.createElement('div', { key: h.name, className: 'bg-orange-50 rounded-lg px-3 py-2' },
+              React.createElement('div', { className: 'text-black font-medium' }, h.name),
+              React.createElement('div', { className: 'text-black/50 text-xs mt-0.5' },
+                'Замена: ', React.createElement('b', { className: 'text-black' }, formatMoney(h.zamena) + '₽'),
+                h.zamenaDay !== null && React.createElement('span', null, ' (' + WEEKDAYS[h.zamenaDay] + ')'),
+                h.refresh && React.createElement(React.Fragment, null, ' · Рефреш: ', React.createElement('b', { className: 'text-black' }, formatMoney(h.refresh) + '₽'), h.refreshDay !== null && React.createElement('span', null, ' (' + WEEKDAYS[h.refreshDay] + ')')),
+                h.manual && React.createElement('span', { className: 'text-orange-600' }, ' · даты вручную'),
+                React.createElement('span', null, ' · до ' + h.maxPerSlot + ' чел.')
+              )
+            );
+          })
+        )
+      )
+    )
   );
-};
+}
 
-// mount
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<PayrollApp />);
+var rootEl = ReactDOM.createRoot(document.getElementById('root'));
+rootEl.render(React.createElement(PayrollApp));
 </script>
 </body>
 </html>

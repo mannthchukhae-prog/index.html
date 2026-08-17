@@ -7,8 +7,14 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+  window.__sb = createClient(
+    'https://ldgwztjgexohrunlorul.supabase.co',
+    'sb_publishable_NfdD2nAX9jFMb3kV6aBuaw_jnAgYwyY'
+  );
+</script>
 </head>
 <body>
 <div id="root"></div>
@@ -17,20 +23,26 @@
 const { useState, useEffect, useMemo } = React;
 
 // ===== Supabase connection =====
-// Publishable (anon) key — safe to keep in front-end code.
-// NEVER put the "secret" key here.
-const SUPABASE_URL = 'https://ldgwztjgexohrunlorul.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_NfdD2nAX9jFMb3kV6aBuaw_jnAgYwyY';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Set up via <script type="module"> above (window.__sb). Wait until it's ready.
 const STORAGE_KEY = 'vkus-i-tsvet-data';
 
+const waitForSupabase = () => new Promise((resolve) => {
+  const check = () => {
+    if (window.__sb) resolve(window.__sb);
+    else setTimeout(check, 30);
+  };
+  check();
+});
+
 async function loadRemoteData() {
+  const sb = await waitForSupabase();
   const { data, error } = await sb.from('app_data').select('value').eq('key', STORAGE_KEY).maybeSingle();
   if (error) throw error;
   return data && data.value ? JSON.parse(data.value) : null;
 }
 
 async function saveRemoteData(payload) {
+  const sb = await waitForSupabase();
   const { error } = await sb.from('app_data').upsert(
     { key: STORAGE_KEY, value: JSON.stringify(payload) },
     { onConflict: 'key' }

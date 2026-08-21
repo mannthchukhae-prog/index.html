@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
@@ -92,9 +93,9 @@ var HOTELS = [
 ];
 
 var DEFAULT_FLORISTS = ['Женя', 'Юля', 'Маша', 'Аня', 'Глеб', 'Алина'];
-var DEFAULT_ADMIN_FLORIST = 'Глеб';
+var DEFAULT_SALARIED_FLORISTS = ['Глеб', 'Алина'];
 var DEFAULT_SHIFT_RATE = 1000;
-var DEFAULT_ADMIN_SALARY = 60000;
+var DEFAULT_SALARY = 60000;
 var MANAGER_BACKUP_PASSWORD = '164970';
 var DEFAULT_MANAGER_PASSWORD = '000000';
 var DEFAULT_FLORIST_PASSWORD = '111111';
@@ -149,18 +150,28 @@ function buildPasswords(list) {
   list.forEach(function (f) { o[f] = DEFAULT_FLORIST_PASSWORD; });
   return o;
 }
+function buildSalaries(list) {
+  var o = {};
+  list.forEach(function (f) { o[f] = DEFAULT_SALARY; });
+  return o;
+}
 
 function renameFloristEverywhere(oldName, newName, state) {
   var florists = state.florists, shiftRates = state.shiftRates, passwords = state.passwords,
       workDays = state.workDays, bookings = state.bookings, onetimes = state.onetimes,
       extraEarnings = state.extraEarnings, submissions = state.submissions,
-      adminFloristName = state.adminFloristName, filterFlorist = state.filterFlorist;
+      salariedFlorists = state.salariedFlorists, salaries = state.salaries, filterFlorist = state.filterFlorist;
 
   var newFlorists = florists.map(function (f) { return f === oldName ? newName : f; });
+  var newSalariedFlorists = salariedFlorists.map(function (f) { return f === oldName ? newName : f; });
 
   var newShiftRates = Object.assign({}, shiftRates);
   if (oldName in newShiftRates) { newShiftRates[newName] = newShiftRates[oldName]; delete newShiftRates[oldName]; }
   else { newShiftRates[newName] = DEFAULT_SHIFT_RATE; }
+
+  var newSalaries = Object.assign({}, salaries);
+  if (oldName in newSalaries) { newSalaries[newName] = newSalaries[oldName]; delete newSalaries[oldName]; }
+  else { newSalaries[newName] = DEFAULT_SALARY; }
 
   var newPasswords = Object.assign({}, passwords);
   if (oldName in newPasswords) { newPasswords[newName] = newPasswords[oldName]; delete newPasswords[oldName]; }
@@ -177,14 +188,13 @@ function renameFloristEverywhere(oldName, newName, state) {
     else { newSubmissions[k] = submissions[k]; }
   });
 
-  var newAdminFloristName = adminFloristName === oldName ? newName : adminFloristName;
   var newFilterFlorist = filterFlorist === oldName ? newName : filterFlorist;
 
   return {
     florists: newFlorists, shiftRates: newShiftRates, passwords: newPasswords,
     workDays: newWorkDays, bookings: newBookings, onetimes: newOnetimes,
     extraEarnings: newExtraEarnings, submissions: newSubmissions,
-    adminFloristName: newAdminFloristName, filterFlorist: newFilterFlorist
+    salariedFlorists: newSalariedFlorists, salaries: newSalaries, filterFlorist: newFilterFlorist
   };
 }
 
@@ -220,8 +230,8 @@ function PayrollApp() {
   var newPasswordDraftsState = useState({}); var newPasswordDrafts = newPasswordDraftsState[0]; var setNewPasswordDrafts = newPasswordDraftsState[1];
 
   var floristsState = useState(DEFAULT_FLORISTS); var florists = floristsState[0]; var setFlorists = floristsState[1];
-  var adminFloristNameState = useState(DEFAULT_ADMIN_FLORIST); var adminFloristName = adminFloristNameState[0]; var setAdminFloristName = adminFloristNameState[1];
-  var adminSalaryState = useState(DEFAULT_ADMIN_SALARY); var adminSalary = adminSalaryState[0]; var setAdminSalary = adminSalaryState[1];
+  var salariedFloristsState = useState(DEFAULT_SALARIED_FLORISTS); var salariedFlorists = salariedFloristsState[0]; var setSalariedFlorists = salariedFloristsState[1];
+  var salariesState = useState(function () { return buildSalaries(DEFAULT_SALARIED_FLORISTS); }); var salaries = salariesState[0]; var setSalaries = salariesState[1];
   var renameDraftsState = useState({}); var renameDrafts = renameDraftsState[0]; var setRenameDrafts = renameDraftsState[1];
   var newFloristNameState = useState(''); var newFloristName = newFloristNameState[0]; var setNewFloristName = newFloristNameState[1];
 
@@ -245,14 +255,16 @@ function PayrollApp() {
   var showOnetimeFormState = useState(false); var showOnetimeForm = showOnetimeFormState[0]; var setShowOnetimeForm = showOnetimeFormState[1];
   var newOnetimeState = useState(function () { return emptyOnetime(DEFAULT_FLORISTS); }); var newOnetime = newOnetimeState[0]; var setNewOnetime = newOnetimeState[1];
 
+  function isSalaried(name) { return salariedFlorists.indexOf(name) !== -1; }
+
   useEffect(function () {
     var cancelled = false;
     loadRemoteData().then(function (data) {
       if (!cancelled && data) {
         var loadedFlorists = data.florists || DEFAULT_FLORISTS;
         setFlorists(loadedFlorists);
-        setAdminFloristName(data.adminFloristName || DEFAULT_ADMIN_FLORIST);
-        setAdminSalary(data.adminSalary != null ? data.adminSalary : DEFAULT_ADMIN_SALARY);
+        setSalariedFlorists(data.salariedFlorists || DEFAULT_SALARIED_FLORISTS);
+        setSalaries(data.salaries || buildSalaries(data.salariedFlorists || DEFAULT_SALARIED_FLORISTS));
         setWorkDays(data.workDays || []);
         setShiftRates(data.shiftRates || buildShiftRates(loadedFlorists));
         setPasswords(data.passwords || buildPasswords(loadedFlorists));
@@ -273,7 +285,7 @@ function PayrollApp() {
   useEffect(function () {
     if (!loaded) return;
     setSaving(true);
-    var payload = { florists: florists, adminFloristName: adminFloristName, adminSalary: adminSalary, workDays: workDays, shiftRates: shiftRates, passwords: passwords, bookings: bookings, onetimes: onetimes, manualSlots: manualSlots, submissions: submissions, extraEarnings: extraEarnings };
+    var payload = { florists: florists, salariedFlorists: salariedFlorists, salaries: salaries, workDays: workDays, shiftRates: shiftRates, passwords: passwords, bookings: bookings, onetimes: onetimes, manualSlots: manualSlots, submissions: submissions, extraEarnings: extraEarnings };
     var timeout = setTimeout(function () {
       saveRemoteData(payload).catch(function (err) {
         console.error('Save error:', err);
@@ -282,7 +294,7 @@ function PayrollApp() {
       });
     }, 500);
     return function () { clearTimeout(timeout); };
-  }, [florists, adminFloristName, adminSalary, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, submissions, extraEarnings, loaded]);
+  }, [florists, salariedFlorists, salaries, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, submissions, extraEarnings, loaded]);
 
   function getRate(hotelName, visitType) {
     var hotel = HOTELS.filter(function (h) { return h.name === hotelName; })[0];
@@ -395,7 +407,7 @@ function PayrollApp() {
     var result = renameFloristEverywhere(oldName, trimmed, {
       florists: florists, shiftRates: shiftRates, passwords: passwords, workDays: workDays,
       bookings: bookings, onetimes: onetimes, extraEarnings: extraEarnings, submissions: submissions,
-      adminFloristName: adminFloristName, filterFlorist: filterFlorist
+      salariedFlorists: salariedFlorists, salaries: salaries, filterFlorist: filterFlorist
     });
     setFlorists(result.florists);
     setShiftRates(result.shiftRates);
@@ -405,7 +417,8 @@ function PayrollApp() {
     setOnetimes(result.onetimes);
     setExtraEarnings(result.extraEarnings);
     setSubmissions(result.submissions);
-    setAdminFloristName(result.adminFloristName);
+    setSalariedFlorists(result.salariedFlorists);
+    setSalaries(result.salaries);
     setFilterFlorist(result.filterFlorist);
     setNoteDrafts({});
   }
@@ -439,19 +452,19 @@ function PayrollApp() {
     });
     monthWorkDays.forEach(function (w) {
       var rec = ensure(w.florist);
-      if (w.florist === adminFloristName) return;
+      if (isSalaried(w.florist)) return;
       var baseRate = shiftRates[w.florist] != null ? shiftRates[w.florist] : DEFAULT_SHIFT_RATE;
       var pct = w.percent != null ? w.percent : 100;
       var rate = baseRate * (pct / 100);
       rec.shifts += 1; rec.shiftPay += rate; rec.total += rate;
     });
-    if (adminFloristName) {
-      var adminRec = ensure(adminFloristName);
-      adminRec.shiftPay += adminSalary;
-      adminRec.total += adminSalary;
-    }
+    salariedFlorists.forEach(function (f) {
+      var rec = ensure(f);
+      var salary = salaries[f] != null ? salaries[f] : DEFAULT_SALARY;
+      rec.shiftPay += salary; rec.total += salary;
+    });
     return map;
-  }, [monthBookings, monthOnetimes, monthExtraEarnings, monthWorkDays, shiftRates, adminFloristName, adminSalary]);
+  }, [monthBookings, monthOnetimes, monthExtraEarnings, monthWorkDays, shiftRates, salariedFlorists, salaries]);
 
   var grandTotal = Object.keys(payrollByFlorist).reduce(function (s, k) { return s + payrollByFlorist[k].total; }, 0);
 
@@ -482,12 +495,12 @@ function PayrollApp() {
   function exportCSV() {
     var headers = ['Дата', 'Флорист', 'Тип', 'Отель/Проект', 'Замена/Рефреш', 'Сумма'];
     var rows = [];
-    monthWorkDays.filter(function (w) { return w.florist !== adminFloristName; }).forEach(function (w) {
+    monthWorkDays.filter(function (w) { return !isSalaried(w.florist); }).forEach(function (w) {
       rows.push([w.date, w.florist, 'Смена', 'Ставка за выход', '-', (shiftRates[w.florist] != null ? shiftRates[w.florist] : DEFAULT_SHIFT_RATE) * ((w.percent != null ? w.percent : 100) / 100)]);
     });
-    if (adminFloristName) {
-      rows.push([viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-01', adminFloristName, 'Оклад', 'Фиксированный оклад за месяц', '-', adminSalary]);
-    }
+    salariedFlorists.forEach(function (f) {
+      rows.push([viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-01', f, 'Оклад', 'Фиксированный оклад за месяц', '-', salaries[f] != null ? salaries[f] : DEFAULT_SALARY]);
+    });
     monthBookings.forEach(function (b) { rows.push([b.date, b.florist, 'Отель', b.hotel, b.visitType === 'zamena' ? 'Замена' : 'Рефреш', getRate(b.hotel, b.visitType)]); });
     monthOnetimes.forEach(function (o) { rows.push([o.date, o.florist, 'Разовое', o.projectName, '-', parseFloat(o.rate) || 0]); });
     monthExtraEarnings.forEach(function (e) { rows.push([e.date, e.florist, 'Доп. заработок', e.description, '-', parseFloat(e.amount) || 0]); });
@@ -595,7 +608,7 @@ function PayrollApp() {
       .sort(function (a, b) { return a - b; });
 
     var myShiftRate = shiftRates[currentUser] != null ? shiftRates[currentUser] : DEFAULT_SHIFT_RATE;
-    var isAdmin = currentUser === adminFloristName;
+    var isAdmin = isSalaried(currentUser);
     var subKey = submissionKey(currentUser, viewMonth, viewYear);
     var mySubmission = submissions[subKey];
     var myStatus = mySubmission ? mySubmission.status : 'draft';
@@ -879,14 +892,26 @@ function PayrollApp() {
         )
       ),
       React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Оклады'),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'На фиксированном окладе: ' + salariedFlorists.join(', ') + '. У остальных — ставка за смену ниже.'),
+        React.createElement('div', { className: 'space-y-2' },
+          salariedFlorists.map(function (f) {
+            return React.createElement('div', { key: f, className: 'flex items-center justify-between bg-orange-500 rounded-lg px-3 py-2' },
+              React.createElement('span', { className: 'text-sm text-white font-medium' }, f + ', ₽/мес'),
+              React.createElement('input', {
+                type: 'number', value: salaries[f] != null ? salaries[f] : DEFAULT_SALARY,
+                onChange: function (e) { var sl = Object.assign({}, salaries); sl[f] = parseFloat(e.target.value) || 0; setSalaries(sl); },
+                className: 'w-24 px-2 py-1 border-2 border-white rounded-md text-sm text-right outline-none bg-orange-500 text-white placeholder-white/60'
+              })
+            );
+          })
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
         React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Ставка за смену (выход)'),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Не применяется к флористу на фиксированном окладе (' + adminFloristName + ').'),
-        React.createElement('div', { className: 'flex items-center justify-between bg-orange-500 rounded-lg px-3 py-2 mb-2' },
-          React.createElement('span', { className: 'text-sm text-white font-medium' }, 'Оклад — ' + adminFloristName + ', ₽/мес'),
-          React.createElement('input', { type: 'number', value: adminSalary, onChange: function (e) { setAdminSalary(parseFloat(e.target.value) || 0); }, className: 'w-24 px-2 py-1 border-2 border-white rounded-md text-sm text-right outline-none bg-orange-500 text-white placeholder-white/60' })
-        ),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Начисляется за каждый отмеченный рабочий день, отдельно от оплаты за отель.'),
         React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-3 gap-2' },
-          florists.filter(function (f) { return f !== adminFloristName; }).map(function (f) {
+          florists.filter(function (f) { return !isSalaried(f); }).map(function (f) {
             return React.createElement('div', { key: f, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2' },
               React.createElement('span', { className: 'text-sm text-black' }, f),
               React.createElement('input', {
@@ -1007,10 +1032,10 @@ function PayrollApp() {
       React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
         React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Корректировка смены (неполный день)'),
         React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Задайте процент от ставки за смену для конкретной даты.'),
-        monthWorkDays.filter(function (w) { return w.florist !== adminFloristName; }).length === 0
+        monthWorkDays.filter(function (w) { return !isSalaried(w.florist); }).length === 0
           ? React.createElement('div', { className: 'text-sm text-black/40' }, 'Нет отмеченных смен в этом месяце')
           : React.createElement('div', { className: 'space-y-1.5' },
-              monthWorkDays.filter(function (w) { return w.florist !== adminFloristName; }).sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (w) {
+              monthWorkDays.filter(function (w) { return !isSalaried(w.florist); }).sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (w) {
                 var baseRate = shiftRates[w.florist] != null ? shiftRates[w.florist] : DEFAULT_SHIFT_RATE;
                 var pct = w.percent != null ? w.percent : 100;
                 return React.createElement('div', { key: w.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
@@ -1131,5 +1156,6 @@ function PayrollApp() {
 var rootEl = ReactDOM.createRoot(document.getElementById('root'));
 rootEl.render(React.createElement(PayrollApp));
 </script>
+
 </body>
 </html>

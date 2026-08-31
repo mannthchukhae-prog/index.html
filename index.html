@@ -494,13 +494,14 @@ function PayrollApp() {
 
   function exportCSV() {
     function dayOf(dateStr) { return parseInt(dateStr.slice(8, 10), 10); }
-    var headers = ['Флорист', 'Смены 1-15', 'Смены 16-31', 'Рефреш', 'Замена', 'Доп: Дата', 'Доп: Сумма', 'Доп: Комментарий'];
+    var headers = ['Флорист', 'Смены 1-15', 'Смены 16-31', 'Смены 1-31', 'Рефреш', 'Замена', 'Доп: Дата', 'Доп: Сумма', 'Доп: Комментарий'];
     var rows = florists.map(function (f) {
-      var smeny1, smeny2;
+      var smeny1, smeny2, smeny1_31;
       if (salariedFlorists.indexOf(f) !== -1) {
         var salary = salaries[f] != null ? salaries[f] : DEFAULT_SALARY;
         smeny1 = salary / 2;
         smeny2 = salary / 2;
+        smeny1_31 = salary;
       } else {
         var half1Days = monthWorkDays.filter(function (w) { return w.florist === f && dayOf(w.date) <= 15; });
         var half2Days = monthWorkDays.filter(function (w) { return w.florist === f && dayOf(w.date) > 15; });
@@ -508,6 +509,7 @@ function PayrollApp() {
         var sumOf = function (days) { return days.reduce(function (s, w) { return s + rate * ((w.percent != null ? w.percent : 100) / 100); }, 0); };
         smeny1 = half1Days.length + '/' + sumOf(half1Days);
         smeny2 = half2Days.length + '/' + sumOf(half2Days);
+        smeny1_31 = (half1Days.length + half2Days.length) + '/' + (sumOf(half1Days) + sumOf(half2Days));
       }
       var refreshSum = monthBookings.filter(function (b) { return b.florist === f && b.visitType === 'refresh'; }).reduce(function (s, b) { return s + getRate(b.hotel, b.visitType); }, 0);
       var zamenaSum = monthBookings.filter(function (b) { return b.florist === f && b.visitType === 'zamena'; }).reduce(function (s, b) { return s + getRate(b.hotel, b.visitType); }, 0);
@@ -516,7 +518,7 @@ function PayrollApp() {
       var doplataDates = doplataEntries.map(function (e) { return e.date; }).join(', ');
       var doplataSum = doplataEntries.reduce(function (s, e) { return s + e.amount; }, 0);
       var doplataComments = doplataEntries.map(function (e) { return e.comment; }).filter(Boolean).join('; ');
-      return [f, smeny1, smeny2, refreshSum, zamenaSum, doplataDates, doplataSum, doplataComments];
+      return [f, smeny1, smeny2, smeny1_31, refreshSum, zamenaSum, doplataDates, doplataSum, doplataComments];
     });
     var csv = [headers].concat(rows).map(function (r) { return r.join(';'); }).join('\n');
     var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });

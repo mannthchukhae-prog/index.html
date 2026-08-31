@@ -492,17 +492,19 @@ function PayrollApp() {
   }
 
   function exportCSV() {
-    var headers = ['Дата', 'Флорист', 'Тип', 'Отель/Проект', 'Замена/Рефреш', 'Сумма'];
-    var rows = [];
-    monthWorkDays.filter(function (w) { return !isSalaried(w.florist); }).forEach(function (w) {
-      rows.push([w.date, w.florist, 'Смена', 'Ставка за выход', '-', (shiftRates[w.florist] != null ? shiftRates[w.florist] : DEFAULT_SHIFT_RATE) * ((w.percent != null ? w.percent : 100) / 100)]);
+    function dayOf(dateStr) { return parseInt(dateStr.slice(8, 10), 10); }
+    var headers = ['Флорист', 'Смены 1-15', 'Смены 16-31', 'Рефреш', 'Замена', 'Доп: Дата', 'Доп: Комментарий'];
+    var rows = florists.map(function (f) {
+      var smeny1 = monthWorkDays.filter(function (w) { return w.florist === f && dayOf(w.date) <= 15; }).length;
+      var smeny2 = monthWorkDays.filter(function (w) { return w.florist === f && dayOf(w.date) > 15; }).length;
+      var refreshCount = monthBookings.filter(function (b) { return b.florist === f && b.visitType === 'refresh'; }).length;
+      var zamenaCount = monthBookings.filter(function (b) { return b.florist === f && b.visitType === 'zamena'; }).length;
+      var doplataEntries = monthOnetimes.filter(function (o) { return o.florist === f; }).map(function (o) { return { date: o.date, comment: o.projectName || '' }; })
+        .concat(monthExtraEarnings.filter(function (e) { return e.florist === f; }).map(function (e) { return { date: e.date, comment: e.description || '' }; }));
+      var doplataDates = doplataEntries.map(function (e) { return e.date; }).join(', ');
+      var doplataComments = doplataEntries.map(function (e) { return e.comment; }).filter(Boolean).join('; ');
+      return [f, smeny1, smeny2, refreshCount, zamenaCount, doplataDates, doplataComments];
     });
-    salariedFlorists.forEach(function (f) {
-      rows.push([viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-01', f, 'Оклад', 'Фиксированный оклад за месяц', '-', salaries[f] != null ? salaries[f] : DEFAULT_SALARY]);
-    });
-    monthBookings.forEach(function (b) { rows.push([b.date, b.florist, 'Отель', b.hotel, b.visitType === 'zamena' ? 'Замена' : 'Рефреш', getRate(b.hotel, b.visitType)]); });
-    monthOnetimes.forEach(function (o) { rows.push([o.date, o.florist, 'Разовое', o.projectName, '-', parseFloat(o.rate) || 0]); });
-    monthExtraEarnings.forEach(function (e) { rows.push([e.date, e.florist, 'Доп. заработок', e.description, '-', parseFloat(e.amount) || 0]); });
     var csv = [headers].concat(rows).map(function (r) { return r.join(';'); }).join('\n');
     var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     var url = URL.createObjectURL(blob);

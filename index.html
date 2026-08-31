@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
@@ -493,17 +494,29 @@ function PayrollApp() {
 
   function exportCSV() {
     function dayOf(dateStr) { return parseInt(dateStr.slice(8, 10), 10); }
-    var headers = ['Флорист', 'Смены 1-15', 'Смены 16-31', 'Рефреш', 'Замена', 'Доп: Дата', 'Доп: Комментарий'];
+    var headers = ['Флорист', 'Смены 1-15', 'Смены 16-31', 'Рефреш', 'Замена', 'Доп: Дата', 'Доп: Сумма', 'Доп: Комментарий'];
     var rows = florists.map(function (f) {
-      var smeny1 = monthWorkDays.filter(function (w) { return w.florist === f && dayOf(w.date) <= 15; }).length;
-      var smeny2 = monthWorkDays.filter(function (w) { return w.florist === f && dayOf(w.date) > 15; }).length;
-      var refreshCount = monthBookings.filter(function (b) { return b.florist === f && b.visitType === 'refresh'; }).length;
-      var zamenaCount = monthBookings.filter(function (b) { return b.florist === f && b.visitType === 'zamena'; }).length;
-      var doplataEntries = monthOnetimes.filter(function (o) { return o.florist === f; }).map(function (o) { return { date: o.date, comment: o.projectName || '' }; })
-        .concat(monthExtraEarnings.filter(function (e) { return e.florist === f; }).map(function (e) { return { date: e.date, comment: e.description || '' }; }));
+      var smeny1, smeny2;
+      if (salariedFlorists.indexOf(f) !== -1) {
+        var salary = salaries[f] != null ? salaries[f] : DEFAULT_SALARY;
+        smeny1 = salary / 2;
+        smeny2 = salary / 2;
+      } else {
+        var half1Days = monthWorkDays.filter(function (w) { return w.florist === f && dayOf(w.date) <= 15; });
+        var half2Days = monthWorkDays.filter(function (w) { return w.florist === f && dayOf(w.date) > 15; });
+        var rate = shiftRates[f] != null ? shiftRates[f] : DEFAULT_SHIFT_RATE;
+        var sumOf = function (days) { return days.reduce(function (s, w) { return s + rate * ((w.percent != null ? w.percent : 100) / 100); }, 0); };
+        smeny1 = half1Days.length + '/' + sumOf(half1Days);
+        smeny2 = half2Days.length + '/' + sumOf(half2Days);
+      }
+      var refreshSum = monthBookings.filter(function (b) { return b.florist === f && b.visitType === 'refresh'; }).reduce(function (s, b) { return s + getRate(b.hotel, b.visitType); }, 0);
+      var zamenaSum = monthBookings.filter(function (b) { return b.florist === f && b.visitType === 'zamena'; }).reduce(function (s, b) { return s + getRate(b.hotel, b.visitType); }, 0);
+      var doplataEntries = monthOnetimes.filter(function (o) { return o.florist === f; }).map(function (o) { return { date: o.date, amount: parseFloat(o.rate) || 0, comment: o.projectName || '' }; })
+        .concat(monthExtraEarnings.filter(function (e) { return e.florist === f; }).map(function (e) { return { date: e.date, amount: parseFloat(e.amount) || 0, comment: e.description || '' }; }));
       var doplataDates = doplataEntries.map(function (e) { return e.date; }).join(', ');
+      var doplataSum = doplataEntries.reduce(function (s, e) { return s + e.amount; }, 0);
       var doplataComments = doplataEntries.map(function (e) { return e.comment; }).filter(Boolean).join('; ');
-      return [f, smeny1, smeny2, refreshCount, zamenaCount, doplataDates, doplataComments];
+      return [f, smeny1, smeny2, refreshSum, zamenaSum, doplataDates, doplataSum, doplataComments];
     });
     var csv = [headers].concat(rows).map(function (r) { return r.join(';'); }).join('\n');
     var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -1160,5 +1173,6 @@ function PayrollApp() {
 var rootEl = ReactDOM.createRoot(document.getElementById('root'));
 rootEl.render(React.createElement(PayrollApp));
 </script>
+
 </body>
 </html>

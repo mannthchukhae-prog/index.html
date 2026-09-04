@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
@@ -28,10 +27,13 @@ var useMemo = React.useMemo;
 var STORAGE_KEY = 'vkus-i-tsvet-data';
 
 function waitForSupabase() {
-  return new Promise(function (resolve) {
+  return new Promise(function (resolve, reject) {
+    var elapsed = 0;
     function check() {
-      if (window.__sb) { resolve(window.__sb); }
-      else { setTimeout(check, 30); }
+      if (window.__sb) { resolve(window.__sb); return; }
+      elapsed += 200;
+      if (elapsed >= 15000) { reject(new Error('Supabase client did not initialize in time')); return; }
+      setTimeout(check, 200);
     }
     check();
   });
@@ -201,6 +203,9 @@ function renameFloristEverywhere(oldName, newName, state) {
 function PayrollApp() {
   var loadedState = useState(false); var loaded = loadedState[0]; var setLoaded = loadedState[1];
   var savingState = useState(false); var saving = savingState[0]; var setSaving = savingState[1];
+  var loadFailedState = useState(false); var loadFailed = loadFailedState[0]; var setLoadFailed = loadFailedState[1];
+  var loadEmptyState = useState(false); var loadEmpty = loadEmptyState[0]; var setLoadEmpty = loadEmptyState[1];
+  var canSaveState = useState(false); var canSave = canSaveState[0]; var setCanSave = canSaveState[1];
   var showBurstState = useState(true); var showBurst = showBurstState[0]; var setShowBurst = showBurstState[1];
 
   var petals = useMemo(function () {
@@ -257,25 +262,47 @@ function PayrollApp() {
 
   function isSalaried(name) { return salariedFlorists.indexOf(name) !== -1; }
 
+  function applyLoadedData(data) {
+    var loadedFlorists = data.florists || DEFAULT_FLORISTS;
+    setFlorists(loadedFlorists);
+    setSalariedFlorists(data.salariedFlorists || DEFAULT_SALARIED_FLORISTS);
+    setSalaries(data.salaries || buildSalaries(data.salariedFlorists || DEFAULT_SALARIED_FLORISTS));
+    setWorkDays(data.workDays || []);
+    setShiftRates(data.shiftRates || buildShiftRates(loadedFlorists));
+    setPasswords(data.passwords || buildPasswords(loadedFlorists));
+    setBookings(data.bookings || []);
+    setOnetimes(data.onetimes || []);
+    setManualSlots(data.manualSlots || []);
+    setSubmissions(data.submissions || {});
+    setExtraEarnings(data.extraEarnings || []);
+  }
+
+  function retryLoad() {
+    setLoadFailed(false);
+    setLoadEmpty(false);
+    loadRemoteData().then(function (data) {
+      if (data) { applyLoadedData(data); setCanSave(true); }
+      else { setLoadEmpty(true); }
+    }).catch(function (err) {
+      console.error('Load error:', err);
+      setLoadFailed(true);
+    });
+  }
+
+  function confirmFreshStart() {
+    setLoadEmpty(false);
+    setCanSave(true);
+  }
+
   useEffect(function () {
     var cancelled = false;
     loadRemoteData().then(function (data) {
-      if (!cancelled && data) {
-        var loadedFlorists = data.florists || DEFAULT_FLORISTS;
-        setFlorists(loadedFlorists);
-        setSalariedFlorists(data.salariedFlorists || DEFAULT_SALARIED_FLORISTS);
-        setSalaries(data.salaries || buildSalaries(data.salariedFlorists || DEFAULT_SALARIED_FLORISTS));
-        setWorkDays(data.workDays || []);
-        setShiftRates(data.shiftRates || buildShiftRates(loadedFlorists));
-        setPasswords(data.passwords || buildPasswords(loadedFlorists));
-        setBookings(data.bookings || []);
-        setOnetimes(data.onetimes || []);
-        setManualSlots(data.manualSlots || []);
-        setSubmissions(data.submissions || {});
-        setExtraEarnings(data.extraEarnings || []);
-      }
+      if (cancelled) return;
+      if (data) { applyLoadedData(data); setCanSave(true); }
+      else { setLoadEmpty(true); }
     }).catch(function (err) {
       console.error('Load error:', err);
+      if (!cancelled) setLoadFailed(true);
     }).then(function () {
       if (!cancelled) setLoaded(true);
     });
@@ -283,7 +310,7 @@ function PayrollApp() {
   }, []);
 
   useEffect(function () {
-    if (!loaded) return;
+    if (!loaded || !canSave) return;
     setSaving(true);
     var payload = { florists: florists, salariedFlorists: salariedFlorists, salaries: salaries, workDays: workDays, shiftRates: shiftRates, passwords: passwords, bookings: bookings, onetimes: onetimes, manualSlots: manualSlots, submissions: submissions, extraEarnings: extraEarnings };
     var timeout = setTimeout(function () {
@@ -294,7 +321,7 @@ function PayrollApp() {
       });
     }, 500);
     return function () { clearTimeout(timeout); };
-  }, [florists, salariedFlorists, salaries, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, submissions, extraEarnings, loaded]);
+  }, [florists, salariedFlorists, salaries, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, submissions, extraEarnings, loaded, canSave]);
 
   function getRate(hotelName, visitType) {
     var hotel = HOTELS.filter(function (h) { return h.name === hotelName; })[0];
@@ -535,10 +562,21 @@ function PayrollApp() {
     );
   }
 
+  var failBanner = (loadFailed || loadEmpty) ? React.createElement('div', {
+    className: 'fixed top-0 left-0 right-0 z-50 bg-orange-500 text-white text-xs text-center py-2 px-4 flex items-center justify-center gap-3 flex-wrap'
+  },
+    loadFailed
+      ? React.createElement('span', null, 'Не удалось загрузить данные с сервера — изменения сейчас не сохраняются.')
+      : React.createElement('span', null, 'В базе не найдено сохранённых данных — возможен сбой. Изменения пока не сохраняются.'),
+    React.createElement('button', { onClick: retryLoad, className: 'underline font-medium' }, 'Повторить'),
+    loadEmpty ? React.createElement('button', { onClick: confirmFreshStart, className: 'underline font-medium' }, 'Это новая установка, начать с нуля') : null
+  ) : null;
+
   if (!currentUser) {
     if (loginTarget) {
       var label = loginTarget === 'manager' ? 'Руководитель' : loginTarget;
       return React.createElement('div', { className: 'min-h-screen bg-white flex items-center justify-center p-6' },
+        failBanner,
         React.createElement('div', { className: 'max-w-sm w-full bg-white rounded-2xl border-2 border-black p-6' },
           React.createElement('div', { className: 'text-center mb-5' },
             React.createElement('div', { className: 'inline-flex bg-orange-500 p-3 rounded-2xl mb-3' }, React.createElement(Lock, { className: 'w-6 h-6 text-white text-xl' })),
@@ -565,6 +603,7 @@ function PayrollApp() {
       );
     }
     return React.createElement('div', { className: 'min-h-screen bg-white' },
+      failBanner,
       React.createElement(PetalBurst, { petals: petals, show: showBurst }),
       React.createElement('div', { className: 'bg-[#E8895F] px-6 pt-12 pb-10' },
         React.createElement('div', { className: 'flex items-center gap-2 mb-10' },
@@ -652,6 +691,7 @@ function PayrollApp() {
     if (myPayroll.extra > 0) myTiles.push({ label: 'Доп. заработок', value: myPayroll.extra });
 
     return React.createElement('div', { className: 'min-h-screen bg-white' },
+      failBanner,
       React.createElement('div', { className: 'bg-white border-b-2 border-black px-4 py-4 flex items-center justify-between sticky top-0 z-10' },
         React.createElement('div', { className: 'flex items-center gap-2' },
           React.createElement('div', { className: 'bg-orange-500 p-2 rounded-lg' }, React.createElement(Calendar, { className: 'w-5 h-5 text-white' })),
@@ -790,6 +830,7 @@ function PayrollApp() {
   }
 
   return React.createElement('div', { className: 'min-h-screen bg-white' },
+    failBanner,
     React.createElement('div', { className: 'bg-white border-b-2 border-black px-4 py-4 flex items-center justify-between sticky top-0 z-10' },
       React.createElement('div', { className: 'flex items-center gap-2' },
         React.createElement('div', { className: 'bg-black p-2 rounded-lg' }, React.createElement(Lock, { className: 'w-5 h-5 text-orange-500' })),
@@ -1175,6 +1216,5 @@ function PayrollApp() {
 var rootEl = ReactDOM.createRoot(document.getElementById('root'));
 rootEl.render(React.createElement(PayrollApp));
 </script>
-
 </body>
 </html>

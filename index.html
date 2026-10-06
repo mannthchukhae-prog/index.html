@@ -247,7 +247,7 @@ function PayrollApp() {
   var bookingsState = useState([]); var bookings = bookingsState[0]; var setBookings = bookingsState[1];
   var onetimesState = useState([]); var onetimes = onetimesState[0]; var setOnetimes = onetimesState[1];
   var manualSlotsState = useState([]); var manualSlots = manualSlotsState[0]; var setManualSlots = manualSlotsState[1];
-  var disabledHotelsState = useState({}); var disabledHotels = disabledHotelsState[0]; var setDisabledHotels = disabledHotelsState[1];
+  var hotelDisablesState = useState([]); var hotelDisables = hotelDisablesState[0]; var setHotelDisables = hotelDisablesState[1];
   var scheduleOverridesState = useState([]); var scheduleOverrides = scheduleOverridesState[0]; var setScheduleOverrides = scheduleOverridesState[1];
   var submissionsState = useState({}); var submissions = submissionsState[0]; var setSubmissions = submissionsState[1];
   var noteDraftsState = useState({}); var noteDrafts = noteDraftsState[0]; var setNoteDrafts = noteDraftsState[1];
@@ -264,17 +264,22 @@ function PayrollApp() {
   var newOnetimeState = useState(function () { return emptyOnetime(DEFAULT_FLORISTS); }); var newOnetime = newOnetimeState[0]; var setNewOnetime = newOnetimeState[1];
   var showOverrideFormState = useState(false); var showOverrideForm = showOverrideFormState[0]; var setShowOverrideForm = showOverrideFormState[1];
   var newOverrideState = useState({ hotel: HOTELS[0].name, fromDay: 16, zamenaDay: '', refreshDay: '' }); var newOverride = newOverrideState[0]; var setNewOverride = newOverrideState[1];
+  var showDisableFormState = useState(false); var showDisableForm = showDisableFormState[0]; var setShowDisableForm = showDisableFormState[1];
+  var newDisableState = useState({ hotel: HOTELS[0].name, visitType: '', from: todayISO(), to: '' }); var newDisable = newDisableState[0]; var setNewDisable = newDisableState[1];
 
   function isSalaried(name) { return salariedFlorists.indexOf(name) !== -1; }
 
-  function hotelToggleKey(hotelName, month, year) { return hotelName + '::' + year + '::' + month; }
-  function isHotelEnabled(hotelName) { return !disabledHotels[hotelToggleKey(hotelName, viewMonth, viewYear)]; }
-  function toggleHotelEnabled(hotelName) {
-    var key = hotelToggleKey(hotelName, viewMonth, viewYear);
-    var next = Object.assign({}, disabledHotels);
-    if (next[key]) { delete next[key]; } else { next[key] = true; }
-    setDisabledHotels(next);
+  function isSlotDisabled(hotelName, visitType, dateStr) {
+    return hotelDisables.some(function (r) {
+      if (r.hotel !== hotelName) return false;
+      if (r.visitType && r.visitType !== visitType) return false;
+      if (r.from && dateStr < r.from) return false;
+      if (r.to && dateStr > r.to) return false;
+      return true;
+    });
   }
+  function addHotelDisable(rule) { setHotelDisables(hotelDisables.concat([Object.assign({}, rule, { id: crypto.randomUUID() })])); }
+  function removeHotelDisable(id) { setHotelDisables(hotelDisables.filter(function (r) { return r.id !== id; })); }
 
   function getEffectiveDays(hotel, year, month, day) {
     var zamenaDay = hotel.zamenaDay;
@@ -306,7 +311,7 @@ function PayrollApp() {
     setBookings(data.bookings || []);
     setOnetimes(data.onetimes || []);
     setManualSlots(data.manualSlots || []);
-    setDisabledHotels(data.disabledHotels || {});
+    setHotelDisables(data.hotelDisables || []);
     setScheduleOverrides(data.scheduleOverrides || []);
     setSubmissions(data.submissions || {});
     setExtraEarnings(data.extraEarnings || []);
@@ -347,7 +352,7 @@ function PayrollApp() {
   useEffect(function () {
     if (!loaded || !canSave) return;
     setSaving(true);
-    var payload = { florists: florists, salariedFlorists: salariedFlorists, salaries: salaries, workDays: workDays, shiftRates: shiftRates, passwords: passwords, bookings: bookings, onetimes: onetimes, manualSlots: manualSlots, disabledHotels: disabledHotels, scheduleOverrides: scheduleOverrides, submissions: submissions, extraEarnings: extraEarnings };
+    var payload = { florists: florists, salariedFlorists: salariedFlorists, salaries: salaries, workDays: workDays, shiftRates: shiftRates, passwords: passwords, bookings: bookings, onetimes: onetimes, manualSlots: manualSlots, hotelDisables: hotelDisables, scheduleOverrides: scheduleOverrides, submissions: submissions, extraEarnings: extraEarnings };
     var timeout = setTimeout(function () {
       saveRemoteData(payload).catch(function (err) {
         console.error('Save error:', err);
@@ -356,7 +361,7 @@ function PayrollApp() {
       });
     }, 500);
     return function () { clearTimeout(timeout); };
-  }, [florists, salariedFlorists, salaries, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, disabledHotels, scheduleOverrides, submissions, extraEarnings, loaded, canSave]);
+  }, [florists, salariedFlorists, salaries, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, hotelDisables, scheduleOverrides, submissions, extraEarnings, loaded, canSave]);
 
   function getRate(hotelName, visitType) {
     var hotel = HOTELS.filter(function (h) { return h.name === hotelName; })[0];
@@ -369,22 +374,21 @@ function PayrollApp() {
     var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
     HOTELS.forEach(function (hotel) {
       if (hotel.manual) return;
-      if (!isHotelEnabled(hotel.name)) return;
       for (var d = 1; d <= daysInMonth; d++) {
         var dateStr = viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
         var wd = getWeekday(dateStr);
         var eff = getEffectiveDays(hotel, viewYear, viewMonth, d);
-        if (eff.zamenaDay === wd) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'zamena', maxPerSlot: hotel.maxPerSlot });
-        if (eff.refreshDay === wd) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'refresh', maxPerSlot: hotel.maxPerSlot });
+        if (eff.zamenaDay === wd && !isSlotDisabled(hotel.name, 'zamena', dateStr)) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'zamena', maxPerSlot: hotel.maxPerSlot });
+        if (eff.refreshDay === wd && !isSlotDisabled(hotel.name, 'refresh', dateStr)) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'refresh', maxPerSlot: hotel.maxPerSlot });
       }
     });
     manualSlots.filter(function (ms) { var d = new Date(ms.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }).forEach(function (ms) {
-      if (!isHotelEnabled(ms.hotel)) return;
+      if (isSlotDisabled(ms.hotel, ms.visitType, ms.date)) return;
       var hotel = HOTELS.filter(function (h) { return h.name === ms.hotel; })[0];
       slots.push({ date: ms.date, hotel: ms.hotel, visitType: ms.visitType, maxPerSlot: hotel ? hotel.maxPerSlot : 2 });
     });
     return slots.sort(function (a, b) { return a.date.localeCompare(b.date); });
-  }, [viewMonth, viewYear, manualSlots, disabledHotels, scheduleOverrides]);
+  }, [viewMonth, viewYear, manualSlots, hotelDisables, scheduleOverrides]);
 
   function slotBookings(date, hotel, visitType) {
     return bookings.filter(function (b) { return b.date === date && b.hotel === hotel && b.visitType === visitType; });
@@ -1152,20 +1156,58 @@ function PayrollApp() {
         React.createElement('span', { className: 'text-orange-500 font-bold text-lg' }, formatMoney(grandTotal) + ' ₽')
       ),
       React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
-        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Отели — доступность на ' + monthNames[viewMonth]),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Выключенный отель сразу пропадает из расписания у всех флористов на этот месяц.'),
-        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-2' },
-          HOTELS.map(function (h) {
-            var enabled = isHotelEnabled(h.name);
-            return React.createElement('button', {
-              key: h.name,
-              onClick: function () { toggleHotelEnabled(h.name); },
-              className: 'flex items-center justify-between rounded-lg px-3 py-2 border-2 text-left transition-colors ' + (enabled ? 'border-black bg-orange-50' : 'border-black/10 bg-black/5 opacity-60')
+        React.createElement('div', { className: 'flex items-center justify-between mb-1' },
+          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Отключение отелей'),
+          React.createElement('button', { onClick: function () { setShowDisableForm(!showDisableForm); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showDisableForm ? 'Скрыть' : '+ Отключить')
+        ),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Можно отключить отель целиком или только Замену/Рефреш отдельно, на любой срок — без ограничений, на пару недель или на конкретные даты.'),
+        showDisableForm && React.createElement('div', { className: 'space-y-2 mb-3' },
+          React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
+            React.createElement('select', { value: newDisable.hotel, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { hotel: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+              HOTELS.map(function (h) { return React.createElement('option', { key: h.name, value: h.name }, h.name); })
+            ),
+            React.createElement('select', { value: newDisable.visitType, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { visitType: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+              React.createElement('option', { value: '' }, 'Весь отель (Замена + Рефреш)'),
+              React.createElement('option', { value: 'zamena' }, 'Только Замена'),
+              React.createElement('option', { value: 'refresh' }, 'Только Рефреш')
+            )
+          ),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
+            React.createElement('div', null,
+              React.createElement('label', { className: 'text-[10px] text-black/40' }, 'С даты'),
+              React.createElement('input', { type: 'date', value: newDisable.from, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { from: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: 'text-[10px] text-black/40' }, 'По дату (пусто = без ограничений)'),
+              React.createElement('input', { type: 'date', value: newDisable.to, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { to: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' })
+            )
+          ),
+          React.createElement('div', { className: 'flex gap-2 flex-wrap' },
+            React.createElement('button', { onClick: function () { setNewDisable(Object.assign({}, newDisable, { to: '' })); }, className: 'text-xs bg-orange-50 border border-orange-300 text-orange-700 px-3 py-1.5 rounded-full' }, 'Без ограничений'),
+            React.createElement('button', { onClick: function () { var d = new Date(newDisable.from); d.setDate(d.getDate() + 7); setNewDisable(Object.assign({}, newDisable, { to: d.toISOString().slice(0, 10) })); }, className: 'text-xs bg-orange-50 border border-orange-300 text-orange-700 px-3 py-1.5 rounded-full' }, 'На 1 неделю'),
+            React.createElement('button', { onClick: function () { var d = new Date(newDisable.from); d.setDate(d.getDate() + 14); setNewDisable(Object.assign({}, newDisable, { to: d.toISOString().slice(0, 10) })); }, className: 'text-xs bg-orange-50 border border-orange-300 text-orange-700 px-3 py-1.5 rounded-full' }, 'На 2 недели')
+          ),
+          React.createElement('button', {
+            onClick: function () {
+              addHotelDisable({ hotel: newDisable.hotel, visitType: newDisable.visitType || null, from: newDisable.from || null, to: newDisable.to || null });
+              setNewDisable({ hotel: HOTELS[0].name, visitType: '', from: todayISO(), to: '' });
+              setShowDisableForm(false);
             },
-              React.createElement('span', { className: 'text-sm text-black font-medium' }, h.name, h.manual && React.createElement('span', { className: 'text-orange-600' }, ' · ручные даты')),
-              React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ml-2 ' + (enabled ? 'bg-black text-white' : 'bg-black/20 text-black/60') }, enabled ? 'Включён' : 'Выключен')
+            className: 'w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-sm font-medium'
+          }, 'Отключить')
+        ),
+        React.createElement('div', { className: 'space-y-1.5' },
+          hotelDisables.map(function (r) {
+            return React.createElement('div', { key: r.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
+              React.createElement('span', { className: 'text-black' },
+                React.createElement('b', null, r.hotel), ' — ' + (r.visitType === 'zamena' ? 'Замена' : r.visitType === 'refresh' ? 'Рефреш' : 'весь отель') + ' · ' +
+                (r.from ? new Date(r.from).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '…') + ' – ' +
+                (r.to ? new Date(r.to).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : 'без ограничений')
+              ),
+              React.createElement('button', { onClick: function () { removeHotelDisable(r.id); }, className: 'text-black/30 hover:text-orange-500 shrink-0 ml-2' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
             );
-          })
+          }),
+          hotelDisables.length === 0 && React.createElement('div', { className: 'text-sm text-black/40' }, 'Нет отключённых отелей')
         )
       ),
       React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },

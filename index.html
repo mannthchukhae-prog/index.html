@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
@@ -89,7 +90,7 @@ var HOTELS = [
   { name: 'ACADEMIA BAR', zamena: 1000, refresh: 500, zamenaDay: 4, refreshDay: 1, maxPerSlot: 2, manual: false },
   { name: 'ACADEMIA LOBBY', zamena: 1000, refresh: 500, zamenaDay: 4, refreshDay: 1, maxPerSlot: 2, manual: false },
   { name: 'COSMOS IT', zamena: 1200, refresh: 500, zamenaDay: 3, refreshDay: 0, maxPerSlot: 2, manual: false },
-  { name: 'COSMOS NEVSKY', zamena: 1200, refresh: 600, zamenaDay: null, refreshDay: null, maxPerSlot: 2, manual: true },
+  { name: 'COSMOS NEVSKY', zamena: 1200, refresh: 600, zamenaDay: 4, refreshDay: 4, maxPerSlot: 2, manual: false },
   { name: 'Renaissance St. Petersburg Baltic', zamena: 1000, refresh: null, zamenaDay: 2, refreshDay: null, maxPerSlot: 2, manual: false },
   { name: 'ACADEMIA BRASSERI', zamena: 500, refresh: 200, zamenaDay: 4, refreshDay: 1, maxPerSlot: 2, manual: false }
 ];
@@ -246,6 +247,8 @@ function PayrollApp() {
   var bookingsState = useState([]); var bookings = bookingsState[0]; var setBookings = bookingsState[1];
   var onetimesState = useState([]); var onetimes = onetimesState[0]; var setOnetimes = onetimesState[1];
   var manualSlotsState = useState([]); var manualSlots = manualSlotsState[0]; var setManualSlots = manualSlotsState[1];
+  var disabledHotelsState = useState({}); var disabledHotels = disabledHotelsState[0]; var setDisabledHotels = disabledHotelsState[1];
+  var scheduleOverridesState = useState([]); var scheduleOverrides = scheduleOverridesState[0]; var setScheduleOverrides = scheduleOverridesState[1];
   var submissionsState = useState({}); var submissions = submissionsState[0]; var setSubmissions = submissionsState[1];
   var noteDraftsState = useState({}); var noteDrafts = noteDraftsState[0]; var setNoteDrafts = noteDraftsState[1];
   var extraEarningsState = useState([]); var extraEarnings = extraEarningsState[0]; var setExtraEarnings = extraEarningsState[1];
@@ -259,8 +262,38 @@ function PayrollApp() {
   var newManualSlotState = useState(emptyManualSlot); var newManualSlot = newManualSlotState[0]; var setNewManualSlot = newManualSlotState[1];
   var showOnetimeFormState = useState(false); var showOnetimeForm = showOnetimeFormState[0]; var setShowOnetimeForm = showOnetimeFormState[1];
   var newOnetimeState = useState(function () { return emptyOnetime(DEFAULT_FLORISTS); }); var newOnetime = newOnetimeState[0]; var setNewOnetime = newOnetimeState[1];
+  var showOverrideFormState = useState(false); var showOverrideForm = showOverrideFormState[0]; var setShowOverrideForm = showOverrideFormState[1];
+  var newOverrideState = useState({ hotel: HOTELS[0].name, fromDay: 16, zamenaDay: '', refreshDay: '' }); var newOverride = newOverrideState[0]; var setNewOverride = newOverrideState[1];
 
   function isSalaried(name) { return salariedFlorists.indexOf(name) !== -1; }
+
+  function hotelToggleKey(hotelName, month, year) { return hotelName + '::' + year + '::' + month; }
+  function isHotelEnabled(hotelName) { return !disabledHotels[hotelToggleKey(hotelName, viewMonth, viewYear)]; }
+  function toggleHotelEnabled(hotelName) {
+    var key = hotelToggleKey(hotelName, viewMonth, viewYear);
+    var next = Object.assign({}, disabledHotels);
+    if (next[key]) { delete next[key]; } else { next[key] = true; }
+    setDisabledHotels(next);
+  }
+
+  function getEffectiveDays(hotel, year, month, day) {
+    var zamenaDay = hotel.zamenaDay;
+    var refreshDay = hotel.refreshDay;
+    scheduleOverrides.forEach(function (o) {
+      if (o.hotel === hotel.name && o.year === year && o.month === month && day >= o.fromDay) {
+        if (o.zamenaDay != null) zamenaDay = o.zamenaDay;
+        if (o.refreshDay != null) refreshDay = o.refreshDay;
+      }
+    });
+    return { zamenaDay: zamenaDay, refreshDay: refreshDay };
+  }
+
+  function addScheduleOverride(override) {
+    setScheduleOverrides(scheduleOverrides.concat([Object.assign({}, override, { id: crypto.randomUUID() })]));
+  }
+  function removeScheduleOverride(id) {
+    setScheduleOverrides(scheduleOverrides.filter(function (o) { return o.id !== id; }));
+  }
 
   function applyLoadedData(data) {
     var loadedFlorists = data.florists || DEFAULT_FLORISTS;
@@ -273,6 +306,8 @@ function PayrollApp() {
     setBookings(data.bookings || []);
     setOnetimes(data.onetimes || []);
     setManualSlots(data.manualSlots || []);
+    setDisabledHotels(data.disabledHotels || {});
+    setScheduleOverrides(data.scheduleOverrides || []);
     setSubmissions(data.submissions || {});
     setExtraEarnings(data.extraEarnings || []);
   }
@@ -312,7 +347,7 @@ function PayrollApp() {
   useEffect(function () {
     if (!loaded || !canSave) return;
     setSaving(true);
-    var payload = { florists: florists, salariedFlorists: salariedFlorists, salaries: salaries, workDays: workDays, shiftRates: shiftRates, passwords: passwords, bookings: bookings, onetimes: onetimes, manualSlots: manualSlots, submissions: submissions, extraEarnings: extraEarnings };
+    var payload = { florists: florists, salariedFlorists: salariedFlorists, salaries: salaries, workDays: workDays, shiftRates: shiftRates, passwords: passwords, bookings: bookings, onetimes: onetimes, manualSlots: manualSlots, disabledHotels: disabledHotels, scheduleOverrides: scheduleOverrides, submissions: submissions, extraEarnings: extraEarnings };
     var timeout = setTimeout(function () {
       saveRemoteData(payload).catch(function (err) {
         console.error('Save error:', err);
@@ -321,7 +356,7 @@ function PayrollApp() {
       });
     }, 500);
     return function () { clearTimeout(timeout); };
-  }, [florists, salariedFlorists, salaries, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, submissions, extraEarnings, loaded, canSave]);
+  }, [florists, salariedFlorists, salaries, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, disabledHotels, scheduleOverrides, submissions, extraEarnings, loaded, canSave]);
 
   function getRate(hotelName, visitType) {
     var hotel = HOTELS.filter(function (h) { return h.name === hotelName; })[0];
@@ -334,19 +369,22 @@ function PayrollApp() {
     var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
     HOTELS.forEach(function (hotel) {
       if (hotel.manual) return;
+      if (!isHotelEnabled(hotel.name)) return;
       for (var d = 1; d <= daysInMonth; d++) {
         var dateStr = viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
         var wd = getWeekday(dateStr);
-        if (hotel.zamenaDay === wd) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'zamena', maxPerSlot: hotel.maxPerSlot });
-        if (hotel.refreshDay === wd) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'refresh', maxPerSlot: hotel.maxPerSlot });
+        var eff = getEffectiveDays(hotel, viewYear, viewMonth, d);
+        if (eff.zamenaDay === wd) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'zamena', maxPerSlot: hotel.maxPerSlot });
+        if (eff.refreshDay === wd) slots.push({ date: dateStr, hotel: hotel.name, visitType: 'refresh', maxPerSlot: hotel.maxPerSlot });
       }
     });
     manualSlots.filter(function (ms) { var d = new Date(ms.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }).forEach(function (ms) {
+      if (!isHotelEnabled(ms.hotel)) return;
       var hotel = HOTELS.filter(function (h) { return h.name === ms.hotel; })[0];
       slots.push({ date: ms.date, hotel: ms.hotel, visitType: ms.visitType, maxPerSlot: hotel ? hotel.maxPerSlot : 2 });
     });
     return slots.sort(function (a, b) { return a.date.localeCompare(b.date); });
-  }, [viewMonth, viewYear, manualSlots]);
+  }, [viewMonth, viewYear, manualSlots, disabledHotels, scheduleOverrides]);
 
   function slotBookings(date, hotel, visitType) {
     return bookings.filter(function (b) { return b.date === date && b.hotel === hotel && b.visitType === visitType; });
@@ -1114,11 +1152,75 @@ function PayrollApp() {
         React.createElement('span', { className: 'text-orange-500 font-bold text-lg' }, formatMoney(grandTotal) + ' ₽')
       ),
       React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Отели — доступность на ' + monthNames[viewMonth]),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Выключенный отель сразу пропадает из расписания у всех флористов на этот месяц.'),
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-2' },
+          HOTELS.map(function (h) {
+            var enabled = isHotelEnabled(h.name);
+            return React.createElement('button', {
+              key: h.name,
+              onClick: function () { toggleHotelEnabled(h.name); },
+              className: 'flex items-center justify-between rounded-lg px-3 py-2 border-2 text-left transition-colors ' + (enabled ? 'border-black bg-orange-50' : 'border-black/10 bg-black/5 opacity-60')
+            },
+              React.createElement('span', { className: 'text-sm text-black font-medium' }, h.name, h.manual && React.createElement('span', { className: 'text-orange-600' }, ' · ручные даты')),
+              React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ml-2 ' + (enabled ? 'bg-black text-white' : 'bg-black/20 text-black/60') }, enabled ? 'Включён' : 'Выключен')
+            );
+          })
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-1' },
+          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Рокировка расписания'),
+          React.createElement('button', { onClick: function () { setShowOverrideForm(!showOverrideForm); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showOverrideForm ? 'Скрыть' : '+ Добавить')
+        ),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Перенос дня недели для отеля с выбранного числа и до конца ' + monthNames[viewMonth] + '. Дни до этого числа не меняются. В следующем месяце расписание само возвращается к обычному.'),
+        showOverrideForm && React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2 mb-3' },
+          React.createElement('select', { value: newOverride.hotel, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { hotel: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black col-span-2 md:col-span-1' },
+            HOTELS.map(function (h) { return React.createElement('option', { key: h.name, value: h.name }, h.name); })
+          ),
+          React.createElement('input', { type: 'number', min: 1, max: 31, value: newOverride.fromDay, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { fromDay: parseInt(e.target.value) || 1 })); }, placeholder: 'С числа', className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
+          React.createElement('select', { value: newOverride.zamenaDay, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { zamenaDay: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+            React.createElement('option', { value: '' }, 'Замена: не менять'),
+            WEEKDAYS.map(function (w, i) { return React.createElement('option', { key: w, value: i }, 'Замена → ' + w); })
+          ),
+          React.createElement('select', { value: newOverride.refreshDay, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { refreshDay: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+            React.createElement('option', { value: '' }, 'Рефреш: не менять'),
+            WEEKDAYS.map(function (w, i) { return React.createElement('option', { key: w, value: i }, 'Рефреш → ' + w); })
+          ),
+          React.createElement('button', {
+            onClick: function () {
+              addScheduleOverride({
+                hotel: newOverride.hotel, year: viewYear, month: viewMonth, fromDay: newOverride.fromDay,
+                zamenaDay: newOverride.zamenaDay === '' ? null : parseInt(newOverride.zamenaDay),
+                refreshDay: newOverride.refreshDay === '' ? null : parseInt(newOverride.refreshDay)
+              });
+              setNewOverride({ hotel: HOTELS[0].name, fromDay: 16, zamenaDay: '', refreshDay: '' });
+              setShowOverrideForm(false);
+            },
+            className: 'bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium col-span-2 md:col-span-4'
+          }, 'Применить рокировку')
+        ),
+        React.createElement('div', { className: 'space-y-1.5' },
+          scheduleOverrides.filter(function (o) { return o.year === viewYear && o.month === viewMonth; }).map(function (o) {
+            return React.createElement('div', { key: o.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
+              React.createElement('span', { className: 'text-black' },
+                React.createElement('b', null, o.hotel), ' — с ' + o.fromDay + ' числа: ',
+                o.zamenaDay != null ? ('Замена → ' + WEEKDAYS[o.zamenaDay]) : '',
+                (o.zamenaDay != null && o.refreshDay != null) ? ', ' : '',
+                o.refreshDay != null ? ('Рефреш → ' + WEEKDAYS[o.refreshDay]) : ''
+              ),
+              React.createElement('button', { onClick: function () { removeScheduleOverride(o.id); }, className: 'text-black/30 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
+            );
+          }),
+          scheduleOverrides.filter(function (o) { return o.year === viewYear && o.month === viewMonth; }).length === 0 && React.createElement('div', { className: 'text-sm text-black/40' }, 'Нет активных рокировок в этом месяце')
+        )
+      ),
+      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
         React.createElement('div', { className: 'flex items-center justify-between mb-3' },
           React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Cosmos Nevsky — открыть дату для флористов'),
           React.createElement('button', { onClick: function () { setShowManualSlotForm(!showManualSlotForm); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showManualSlotForm ? 'Скрыть' : '+ Открыть слот')
         ),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-2' }, 'У этого отеля нет фиксированного графика — даты назначаются вручную.'),
+        React.createElement('p', { className: 'text-xs text-black/40 mb-2' }, 'Отель теперь на фиксированном графике (пятница) — ручные слоты можно использовать для дополнительных дат вне обычного расписания.'),
         showManualSlotForm && React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2 mb-3' },
           React.createElement('input', { type: 'date', value: newManualSlot.date, onChange: function (e) { setNewManualSlot(Object.assign({}, newManualSlot, { date: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
           React.createElement('select', { value: newManualSlot.visitType, onChange: function (e) { setNewManualSlot(Object.assign({}, newManualSlot, { visitType: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
@@ -1216,5 +1318,6 @@ function PayrollApp() {
 var rootEl = ReactDOM.createRoot(document.getElementById('root'));
 rootEl.render(React.createElement(PayrollApp));
 </script>
+
 </body>
 </html>

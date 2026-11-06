@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
@@ -19,14 +18,12 @@
 </head>
 <body>
 <div id="root"></div>
-
 <script type="text/babel" data-presets="react">
 var useState = React.useState;
 var useEffect = React.useEffect;
 var useMemo = React.useMemo;
-
 var STORAGE_KEY = 'vkus-i-tsvet-data';
-
+var MANUAL_SLOT_HOTEL = 'COSMOS NEVSKY';
 function waitForSupabase() {
   return new Promise(function (resolve, reject) {
     var elapsed = 0;
@@ -39,7 +36,6 @@ function waitForSupabase() {
     check();
   });
 }
-
 function loadRemoteData() {
   return waitForSupabase().then(function (sb) {
     return sb.from('app_data').select('value').eq('key', STORAGE_KEY).maybeSingle().then(function (res) {
@@ -48,7 +44,6 @@ function loadRemoteData() {
     });
   });
 }
-
 function saveRemoteData(payload) {
   return waitForSupabase().then(function (sb) {
     return sb.from('app_data').upsert(
@@ -59,7 +54,6 @@ function saveRemoteData(payload) {
     });
   });
 }
-
 var iconStub = function (emoji) {
   return function (props) {
     return React.createElement('span', { className: props.className, style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 } }, emoji);
@@ -80,9 +74,21 @@ var UserPlus = iconStub('➕');
 function Loader2(props) {
   return React.createElement('span', { className: (props.className || '') + ' inline-block animate-spin' }, '⏳');
 }
-
+// Общие стили «жидкого стекла»
+var GLASS_BG = 'min-h-screen bg-gradient-to-br from-[#FFE7D6] via-[#FFF4EC] to-[#DCE9F7]';
+var GLASS_CARD = 'bg-white/55 backdrop-blur-xl rounded-3xl border border-white/70 shadow-xl shadow-orange-900/5';
+var GLASS_ROW = 'bg-white/45 backdrop-blur border border-white/60 rounded-2xl';
+var GLASS_INPUT = 'bg-white/60 backdrop-blur border border-white/70 rounded-2xl outline-none focus:border-orange-400 text-slate-800 placeholder-slate-400';
+var GLASS_BTN_DARK = 'bg-slate-900/70 backdrop-blur-xl text-white rounded-full hover:bg-slate-900/85 transition-colors';
+var GLASS_BTN_ORANGE = 'bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-full shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:brightness-105 transition-all';
+function GlassBackdrop() {
+  return React.createElement('div', { className: 'fixed inset-0 pointer-events-none z-0' },
+    React.createElement('div', { className: 'absolute -top-32 -left-32 w-96 h-96 bg-orange-300/40 rounded-full blur-3xl' }),
+    React.createElement('div', { className: 'absolute top-1/3 -right-40 w-[28rem] h-[28rem] bg-rose-300/30 rounded-full blur-3xl' }),
+    React.createElement('div', { className: 'absolute -bottom-32 left-1/4 w-[26rem] h-[26rem] bg-sky-300/30 rounded-full blur-3xl' })
+  );
+}
 var WEEKDAYS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-
 var HOTELS = [
   { name: 'PALACE BRIDGE LOBBY', zamena: 1200, refresh: 500, zamenaDay: 2, refreshDay: 6, maxPerSlot: 2, manual: false },
   { name: 'PALACE BRIDGE REST', zamena: 1000, refresh: 600, zamenaDay: 2, refreshDay: 6, maxPerSlot: 2, manual: false },
@@ -94,7 +100,6 @@ var HOTELS = [
   { name: 'Renaissance St. Petersburg Baltic', zamena: 1000, refresh: null, zamenaDay: 2, refreshDay: null, maxPerSlot: 2, manual: false },
   { name: 'ACADEMIA BRASSERI', zamena: 500, refresh: 200, zamenaDay: 4, refreshDay: 1, maxPerSlot: 2, manual: false }
 ];
-
 var DEFAULT_FLORISTS = ['Женя', 'Юля', 'Маша', 'Аня', 'Глеб', 'Алина'];
 var DEFAULT_SALARIED_FLORISTS = ['Глеб', 'Алина'];
 var DEFAULT_SHIFT_RATE = 1000;
@@ -102,18 +107,14 @@ var DEFAULT_SALARY = 60000;
 var MANAGER_BACKUP_PASSWORD = '164970';
 var DEFAULT_MANAGER_PASSWORD = '000000';
 var DEFAULT_FLORIST_PASSWORD = '111111';
-
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 var monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-
 function getWeekday(dateStr) {
   var d = new Date(dateStr);
   var wd = d.getDay();
   return wd === 0 ? 6 : wd - 1;
 }
-
 function submissionKey(florist, month, year) { return florist + '::' + year + '::' + month; }
-
 function PetalBurst(props) {
   var petals = props.petals;
   var show = props.show;
@@ -133,9 +134,8 @@ function PetalBurst(props) {
     })
   );
 }
-
 function emptyManualSlot() {
-  return { id: crypto.randomUUID(), date: todayISO(), hotel: (HOTELS.filter(function (h) { return h.manual; })[0] || HOTELS[0]).name, visitType: 'zamena' };
+  return { id: crypto.randomUUID(), date: todayISO(), hotel: MANUAL_SLOT_HOTEL, visitType: 'zamena' };
 }
 function emptyOnetime(florists) {
   return { id: crypto.randomUUID(), date: todayISO(), florist: florists[0] || '', projectName: '', rate: '' };
@@ -158,41 +158,32 @@ function buildSalaries(list) {
   list.forEach(function (f) { o[f] = DEFAULT_SALARY; });
   return o;
 }
-
 function renameFloristEverywhere(oldName, newName, state) {
   var florists = state.florists, shiftRates = state.shiftRates, passwords = state.passwords,
       workDays = state.workDays, bookings = state.bookings, onetimes = state.onetimes,
       extraEarnings = state.extraEarnings, submissions = state.submissions,
       salariedFlorists = state.salariedFlorists, salaries = state.salaries, filterFlorist = state.filterFlorist;
-
   var newFlorists = florists.map(function (f) { return f === oldName ? newName : f; });
   var newSalariedFlorists = salariedFlorists.map(function (f) { return f === oldName ? newName : f; });
-
   var newShiftRates = Object.assign({}, shiftRates);
   if (oldName in newShiftRates) { newShiftRates[newName] = newShiftRates[oldName]; delete newShiftRates[oldName]; }
   else { newShiftRates[newName] = DEFAULT_SHIFT_RATE; }
-
   var newSalaries = Object.assign({}, salaries);
   if (oldName in newSalaries) { newSalaries[newName] = newSalaries[oldName]; delete newSalaries[oldName]; }
   else { newSalaries[newName] = DEFAULT_SALARY; }
-
   var newPasswords = Object.assign({}, passwords);
   if (oldName in newPasswords) { newPasswords[newName] = newPasswords[oldName]; delete newPasswords[oldName]; }
   else { newPasswords[newName] = DEFAULT_FLORIST_PASSWORD; }
-
   var newWorkDays = workDays.map(function (w) { return w.florist === oldName ? Object.assign({}, w, { florist: newName }) : w; });
   var newBookings = bookings.map(function (b) { return b.florist === oldName ? Object.assign({}, b, { florist: newName }) : b; });
   var newOnetimes = onetimes.map(function (o) { return o.florist === oldName ? Object.assign({}, o, { florist: newName }) : o; });
   var newExtraEarnings = extraEarnings.map(function (e) { return e.florist === oldName ? Object.assign({}, e, { florist: newName }) : e; });
-
   var newSubmissions = {};
   Object.keys(submissions).forEach(function (k) {
     if (k.indexOf(oldName + '::') === 0) { newSubmissions[newName + k.slice(oldName.length)] = submissions[k]; }
     else { newSubmissions[k] = submissions[k]; }
   });
-
   var newFilterFlorist = filterFlorist === oldName ? newName : filterFlorist;
-
   return {
     florists: newFlorists, shiftRates: newShiftRates, passwords: newPasswords,
     workDays: newWorkDays, bookings: newBookings, onetimes: newOnetimes,
@@ -200,7 +191,6 @@ function renameFloristEverywhere(oldName, newName, state) {
     salariedFlorists: newSalariedFlorists, salaries: newSalaries, filterFlorist: newFilterFlorist
   };
 }
-
 function PayrollApp() {
   var loadedState = useState(false); var loaded = loadedState[0]; var setLoaded = loadedState[1];
   var savingState = useState(false); var saving = savingState[0]; var setSaving = savingState[1];
@@ -208,7 +198,6 @@ function PayrollApp() {
   var loadEmptyState = useState(false); var loadEmpty = loadEmptyState[0]; var setLoadEmpty = loadEmptyState[1];
   var canSaveState = useState(false); var canSave = canSaveState[0]; var setCanSave = canSaveState[1];
   var showBurstState = useState(true); var showBurst = showBurstState[0]; var setShowBurst = showBurstState[1];
-
   var petals = useMemo(function () {
     var arr = [];
     for (var i = 0; i < 180; i++) {
@@ -222,25 +211,21 @@ function PayrollApp() {
     }
     return arr;
   }, []);
-
   useEffect(function () {
     var t = setTimeout(function () { setShowBurst(false); }, 2600);
     return function () { clearTimeout(t); };
   }, []);
-
   var currentUserState = useState(null); var currentUser = currentUserState[0]; var setCurrentUser = currentUserState[1];
   var loginTargetState = useState(null); var loginTarget = loginTargetState[0]; var setLoginTarget = loginTargetState[1];
   var passwordInputState = useState(''); var passwordInput = passwordInputState[0]; var setPasswordInput = passwordInputState[1];
   var loginErrorState = useState(''); var loginError = loginErrorState[0]; var setLoginError = loginErrorState[1];
   var showPasswordSettingsState = useState(false); var showPasswordSettings = showPasswordSettingsState[0]; var setShowPasswordSettings = showPasswordSettingsState[1];
   var newPasswordDraftsState = useState({}); var newPasswordDrafts = newPasswordDraftsState[0]; var setNewPasswordDrafts = newPasswordDraftsState[1];
-
   var floristsState = useState(DEFAULT_FLORISTS); var florists = floristsState[0]; var setFlorists = floristsState[1];
   var salariedFloristsState = useState(DEFAULT_SALARIED_FLORISTS); var salariedFlorists = salariedFloristsState[0]; var setSalariedFlorists = salariedFloristsState[1];
   var salariesState = useState(function () { return buildSalaries(DEFAULT_SALARIED_FLORISTS); }); var salaries = salariesState[0]; var setSalaries = salariesState[1];
   var renameDraftsState = useState({}); var renameDrafts = renameDraftsState[0]; var setRenameDrafts = renameDraftsState[1];
   var newFloristNameState = useState(''); var newFloristName = newFloristNameState[0]; var setNewFloristName = newFloristNameState[1];
-
   var workDaysState = useState([]); var workDays = workDaysState[0]; var setWorkDays = workDaysState[1];
   var shiftRatesState = useState(function () { return buildShiftRates(DEFAULT_FLORISTS); }); var shiftRates = shiftRatesState[0]; var setShiftRates = shiftRatesState[1];
   var passwordsState = useState(function () { return buildPasswords(DEFAULT_FLORISTS); }); var passwords = passwordsState[0]; var setPasswords = passwordsState[1];
@@ -254,7 +239,6 @@ function PayrollApp() {
   var extraEarningsState = useState([]); var extraEarnings = extraEarningsState[0]; var setExtraEarnings = extraEarningsState[1];
   var showExtraEarningFormState = useState(false); var showExtraEarningForm = showExtraEarningFormState[0]; var setShowExtraEarningForm = showExtraEarningFormState[1];
   var newExtraEarningState = useState(emptyExtraEarning); var newExtraEarning = newExtraEarningState[0]; var setNewExtraEarning = newExtraEarningState[1];
-
   var viewMonthState = useState(new Date().getMonth()); var viewMonth = viewMonthState[0]; var setViewMonth = viewMonthState[1];
   var viewYearState = useState(new Date().getFullYear()); var viewYear = viewYearState[0]; var setViewYear = viewYearState[1];
   var filterFloristState = useState('all'); var filterFlorist = filterFloristState[0]; var setFilterFlorist = filterFloristState[1];
@@ -266,9 +250,7 @@ function PayrollApp() {
   var newOverrideState = useState({ hotel: HOTELS[0].name, fromDay: 16, zamenaDay: '', refreshDay: '' }); var newOverride = newOverrideState[0]; var setNewOverride = newOverrideState[1];
   var showDisableFormState = useState(false); var showDisableForm = showDisableFormState[0]; var setShowDisableForm = showDisableFormState[1];
   var newDisableState = useState({ hotel: HOTELS[0].name, visitType: '', from: todayISO(), to: '' }); var newDisable = newDisableState[0]; var setNewDisable = newDisableState[1];
-
   function isSalaried(name) { return salariedFlorists.indexOf(name) !== -1; }
-
   function isSlotDisabled(hotelName, visitType, dateStr) {
     return hotelDisables.some(function (r) {
       if (r.hotel !== hotelName) return false;
@@ -280,7 +262,6 @@ function PayrollApp() {
   }
   function addHotelDisable(rule) { setHotelDisables(hotelDisables.concat([Object.assign({}, rule, { id: crypto.randomUUID() })])); }
   function removeHotelDisable(id) { setHotelDisables(hotelDisables.filter(function (r) { return r.id !== id; })); }
-
   function getEffectiveDays(hotel, year, month, day) {
     var zamenaDay = hotel.zamenaDay;
     var refreshDay = hotel.refreshDay;
@@ -292,14 +273,12 @@ function PayrollApp() {
     });
     return { zamenaDay: zamenaDay, refreshDay: refreshDay };
   }
-
   function addScheduleOverride(override) {
     setScheduleOverrides(scheduleOverrides.concat([Object.assign({}, override, { id: crypto.randomUUID() })]));
   }
   function removeScheduleOverride(id) {
     setScheduleOverrides(scheduleOverrides.filter(function (o) { return o.id !== id; }));
   }
-
   function applyLoadedData(data) {
     var loadedFlorists = data.florists || DEFAULT_FLORISTS;
     setFlorists(loadedFlorists);
@@ -316,7 +295,6 @@ function PayrollApp() {
     setSubmissions(data.submissions || {});
     setExtraEarnings(data.extraEarnings || []);
   }
-
   function retryLoad() {
     setLoadFailed(false);
     setLoadEmpty(false);
@@ -328,12 +306,10 @@ function PayrollApp() {
       setLoadFailed(true);
     });
   }
-
   function confirmFreshStart() {
     setLoadEmpty(false);
     setCanSave(true);
   }
-
   useEffect(function () {
     var cancelled = false;
     loadRemoteData().then(function (data) {
@@ -348,7 +324,6 @@ function PayrollApp() {
     });
     return function () { cancelled = true; };
   }, []);
-
   useEffect(function () {
     if (!loaded || !canSave) return;
     setSaving(true);
@@ -362,13 +337,11 @@ function PayrollApp() {
     }, 500);
     return function () { clearTimeout(timeout); };
   }, [florists, salariedFlorists, salaries, workDays, shiftRates, passwords, bookings, onetimes, manualSlots, hotelDisables, scheduleOverrides, submissions, extraEarnings, loaded, canSave]);
-
   function getRate(hotelName, visitType) {
     var hotel = HOTELS.filter(function (h) { return h.name === hotelName; })[0];
     if (!hotel) return 0;
     return visitType === 'zamena' ? hotel.zamena : (hotel.refresh || 0);
   }
-
   var availableSlots = useMemo(function () {
     var slots = [];
     var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -389,11 +362,9 @@ function PayrollApp() {
     });
     return slots.sort(function (a, b) { return a.date.localeCompare(b.date); });
   }, [viewMonth, viewYear, manualSlots, hotelDisables, scheduleOverrides]);
-
   function slotBookings(date, hotel, visitType) {
     return bookings.filter(function (b) { return b.date === date && b.hotel === hotel && b.visitType === visitType; });
   }
-
   function toggleBooking(slot, florist) {
     var existing = bookings.filter(function (b) { return b.date === slot.date && b.hotel === slot.hotel && b.visitType === slot.visitType && b.florist === florist; })[0];
     if (existing) { setBookings(bookings.filter(function (b) { return b.id !== existing.id; })); return; }
@@ -401,7 +372,6 @@ function PayrollApp() {
     if (current.length >= slot.maxPerSlot) return;
     setBookings(bookings.concat([{ id: crypto.randomUUID(), date: slot.date, hotel: slot.hotel, visitType: slot.visitType, florist: florist }]));
   }
-
   function toggleWorkDay(florist, date) {
     var existing = workDays.filter(function (w) { return w.florist === florist && w.date === date; })[0];
     if (existing) {
@@ -411,13 +381,11 @@ function PayrollApp() {
     }
     setWorkDays(workDays.concat([{ id: crypto.randomUUID(), florist: florist, date: date, percent: 100 }]));
   }
-
   function setWorkDayPercent(florist, date, percent) {
     setWorkDays(workDays.map(function (w) { return (w.florist === florist && w.date === date) ? Object.assign({}, w, { percent: percent }) : w; }));
   }
   function isWorkDay(florist, date) { return workDays.some(function (w) { return w.florist === florist && w.date === date; }); }
   function removeBooking(id) { setBookings(bookings.filter(function (b) { return b.id !== id; })); }
-
   function addManualSlot() {
     setManualSlots(manualSlots.concat([Object.assign({}, newManualSlot)]));
     setNewManualSlot(emptyManualSlot());
@@ -435,7 +403,6 @@ function PayrollApp() {
     setShowExtraEarningForm(false);
   }
   function removeExtraEarning(id) { setExtraEarnings(extraEarnings.filter(function (e) { return e.id !== id; })); }
-
   function submitSchedule(florist) {
     var key = submissionKey(florist, viewMonth, viewYear);
     var next = Object.assign({}, submissions);
@@ -458,7 +425,6 @@ function PayrollApp() {
     nd[key] = '';
     setNoteDrafts(nd);
   }
-
   function addFlorist(name) {
     var trimmed = name.trim();
     if (!trimmed || florists.indexOf(trimmed) !== -1) return;
@@ -491,12 +457,10 @@ function PayrollApp() {
     setFilterFlorist(result.filterFlorist);
     setNoteDrafts({});
   }
-
   var monthBookings = useMemo(function () { return bookings.filter(function (b) { var d = new Date(b.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }); }, [bookings, viewMonth, viewYear]);
   var monthOnetimes = useMemo(function () { return onetimes.filter(function (o) { var d = new Date(o.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }); }, [onetimes, viewMonth, viewYear]);
   var monthWorkDays = useMemo(function () { return workDays.filter(function (w) { var d = new Date(w.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }); }, [workDays, viewMonth, viewYear]);
   var monthExtraEarnings = useMemo(function () { return extraEarnings.filter(function (e) { var d = new Date(e.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }); }, [extraEarnings, viewMonth, viewYear]);
-
   var payrollByFlorist = useMemo(function () {
     var map = {};
     function ensure(f) {
@@ -534,9 +498,7 @@ function PayrollApp() {
     });
     return map;
   }, [monthBookings, monthOnetimes, monthExtraEarnings, monthWorkDays, shiftRates, salariedFlorists, salaries]);
-
   var grandTotal = Object.keys(payrollByFlorist).reduce(function (s, k) { return s + payrollByFlorist[k].total; }, 0);
-
   function changeMonth(delta) {
     var m = viewMonth + delta, y = viewYear;
     if (m < 0) { m = 11; y -= 1; }
@@ -544,7 +506,6 @@ function PayrollApp() {
     setViewMonth(m); setViewYear(y);
   }
   function formatMoney(n) { return new Intl.NumberFormat('ru-RU').format(n); }
-
   function attemptLogin() {
     if (!loginTarget) return;
     var correctPassword = passwords[loginTarget];
@@ -553,14 +514,12 @@ function PayrollApp() {
       setCurrentUser(loginTarget); setLoginTarget(null); setPasswordInput(''); setLoginError('');
     } else { setLoginError('Неверный пароль'); setPasswordInput(''); }
   }
-
   function savePassword(profile) {
     var draft = newPasswordDrafts[profile];
     if (!draft || !/^\d{6}$/.test(draft)) return;
     var pw = Object.assign({}, passwords); pw[profile] = draft; setPasswords(pw);
     var np = Object.assign({}, newPasswordDrafts); np[profile] = ''; setNewPasswordDrafts(np);
   }
-
   function exportCSV() {
     function dayOf(dateStr) { return parseInt(dateStr.slice(8, 10), 10); }
     var headers = ['Флорист', 'Смены 1-15', 'Смены 16-31', 'Смены 1-31', 'Рефреш', 'Замена', 'Доп: Дата', 'Доп: Сумма', 'Доп: Комментарий'];
@@ -596,16 +555,15 @@ function PayrollApp() {
     a.href = url; a.download = 'зарплаты_' + monthNames[viewMonth] + '_' + viewYear + '.csv'; a.click();
     URL.revokeObjectURL(url);
   }
-
   if (!loaded) {
-    return React.createElement('div', { className: 'min-h-screen bg-white flex items-center justify-center' },
+    return React.createElement('div', { className: GLASS_BG + ' relative flex items-center justify-center' },
+      React.createElement(GlassBackdrop, null),
       React.createElement(PetalBurst, { petals: petals, show: showBurst }),
-      React.createElement(Loader2, { className: 'w-8 h-8 text-orange-500 text-3xl' })
+      React.createElement(Loader2, { className: 'relative z-10 w-8 h-8 text-orange-500 text-3xl' })
     );
   }
-
   var failBanner = (loadFailed || loadEmpty) ? React.createElement('div', {
-    className: 'fixed top-0 left-0 right-0 z-50 bg-orange-500 text-white text-xs text-center py-2 px-4 flex items-center justify-center gap-3 flex-wrap'
+    className: 'fixed top-0 left-0 right-0 z-50 bg-orange-500/90 backdrop-blur-xl text-white text-xs text-center py-2 px-4 flex items-center justify-center gap-3 flex-wrap'
   },
     loadFailed
       ? React.createElement('span', null, 'Не удалось загрузить данные с сервера — изменения сейчас не сохраняются.')
@@ -613,41 +571,42 @@ function PayrollApp() {
     React.createElement('button', { onClick: retryLoad, className: 'underline font-medium' }, 'Повторить'),
     loadEmpty ? React.createElement('button', { onClick: confirmFreshStart, className: 'underline font-medium' }, 'Это новая установка, начать с нуля') : null
   ) : null;
-
   if (!currentUser) {
     if (loginTarget) {
       var label = loginTarget === 'manager' ? 'Руководитель' : loginTarget;
-      return React.createElement('div', { className: 'min-h-screen bg-white flex items-center justify-center p-6' },
+      return React.createElement('div', { className: GLASS_BG + ' relative flex items-center justify-center p-6' },
+        React.createElement(GlassBackdrop, null),
         failBanner,
-        React.createElement('div', { className: 'max-w-sm w-full bg-white rounded-2xl border-2 border-black p-6' },
+        React.createElement('div', { className: 'relative z-10 max-w-sm w-full bg-white/55 backdrop-blur-xl rounded-3xl border border-white/70 shadow-2xl shadow-orange-500/10 p-6' },
           React.createElement('div', { className: 'text-center mb-5' },
-            React.createElement('div', { className: 'inline-flex bg-orange-500 p-3 rounded-2xl mb-3' }, React.createElement(Lock, { className: 'w-6 h-6 text-white text-xl' })),
-            React.createElement('h2', { className: 'text-lg font-bold text-black' }, label),
-            React.createElement('p', { className: 'text-xs text-black/50 mt-1' }, 'Введите 6-значный пароль')
+            React.createElement('div', { className: 'inline-flex bg-gradient-to-br from-orange-400 to-orange-500 p-3 rounded-2xl mb-3 shadow-lg shadow-orange-500/30' }, React.createElement(Lock, { className: 'w-6 h-6 text-white text-xl' })),
+            React.createElement('h2', { className: 'text-lg font-bold text-slate-800' }, label),
+            React.createElement('p', { className: 'text-xs text-slate-400 mt-1' }, 'Введите 6-значный пароль')
           ),
           React.createElement('input', {
             type: 'password', inputMode: 'numeric', maxLength: 6, value: passwordInput,
             onChange: function (e) { setPasswordInput(e.target.value.replace(/\D/g, '').slice(0, 6)); setLoginError(''); },
             onKeyDown: function (e) { if (e.key === 'Enter') attemptLogin(); },
             placeholder: '••••••', autoFocus: true,
-            className: 'w-full text-center text-2xl tracking-[0.5em] px-3 py-3 border-2 border-black rounded-xl outline-none focus:border-orange-500 mb-3 text-black'
+            className: 'w-full text-center text-2xl tracking-[0.5em] px-3 py-3 bg-white/70 backdrop-blur border border-white/70 rounded-2xl outline-none focus:border-orange-400 mb-3 text-slate-800'
           }),
           loginError && React.createElement('div', { className: 'text-orange-600 text-xs text-center mb-3 font-medium' }, loginError),
           React.createElement('button', {
             onClick: attemptLogin, disabled: passwordInput.length !== 6,
-            className: 'w-full bg-orange-500 hover:bg-orange-600 disabled:bg-black/10 disabled:text-black/30 text-white py-2.5 rounded-xl font-medium transition-colors'
+            className: 'w-full ' + GLASS_BTN_ORANGE + ' disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none py-2.5 font-medium'
           }, 'Войти'),
           React.createElement('button', {
             onClick: function () { setLoginTarget(null); setPasswordInput(''); setLoginError(''); },
-            className: 'w-full text-black/40 text-sm py-2 mt-1'
+            className: 'w-full text-slate-400 text-sm py-2 mt-1'
           }, 'Назад')
         )
       );
     }
-    return React.createElement('div', { className: 'min-h-screen bg-white' },
+    return React.createElement('div', { className: GLASS_BG + ' relative' },
+      React.createElement(GlassBackdrop, null),
       failBanner,
       React.createElement(PetalBurst, { petals: petals, show: showBurst }),
-      React.createElement('div', { className: 'bg-[#E8895F] px-6 pt-12 pb-10' },
+      React.createElement('div', { className: 'relative z-10 bg-white/40 backdrop-blur-xl px-6 pt-12 pb-10 border-b border-white/50' },
         React.createElement('div', { className: 'flex items-center gap-2 mb-10' },
           React.createElement('img', { src: 'logo.png', alt: 'Вкус и Цвет', className: 'w-8 h-8 object-contain', onError: function (e) { e.target.style.display = 'none'; } }),
           React.createElement('span', { className: 'text-[#1B3B5F] font-bold tracking-widest text-xs' }, 'ВКУС И ЦВЕТ')
@@ -655,37 +614,35 @@ function PayrollApp() {
         React.createElement('h1', { className: 'text-[#1B3B5F] text-3xl font-bold leading-tight mb-3' }, 'Система внутреннего учёта рабочего времени'),
         React.createElement('p', { className: 'text-[#1B3B5F]/60 text-sm' }, 'сотрудников · Цветочная мастерская')
       ),
-      React.createElement('div', { className: 'bg-white rounded-t-3xl -mt-5 relative px-6 pt-7 pb-10 max-w-md mx-auto' },
-        React.createElement('div', { className: 'text-[11px] text-gray-400 tracking-wider font-medium mb-3' }, 'ВЫБЕРИТЕ ПРОФИЛЬ ДЛЯ ВХОДА'),
+      React.createElement('div', { className: 'relative z-10 bg-white/60 backdrop-blur-2xl rounded-t-[2rem] -mt-5 px-6 pt-7 pb-10 max-w-md mx-auto shadow-2xl shadow-orange-900/10' },
+        React.createElement('div', { className: 'text-[11px] text-slate-400 tracking-wider font-medium mb-3' }, 'ВЫБЕРИТЕ ПРОФИЛЬ ДЛЯ ВХОДА'),
         React.createElement('button', {
           onClick: function () { setLoginTarget('manager'); setPasswordInput(''); setLoginError(''); },
-          className: 'w-full flex items-center gap-3 border-2 border-[#1B3B5F] rounded-xl p-4 mb-7 hover:bg-[#1B3B5F]/5 transition-colors'
+          className: 'w-full flex items-center gap-3 bg-white/60 backdrop-blur border border-white/70 rounded-3xl shadow-lg shadow-orange-900/5 p-4 mb-7 hover:bg-white/80 transition-colors'
         },
           React.createElement(Lock, { className: 'w-5 h-5 text-orange-500 shrink-0' }),
           React.createElement('div', { className: 'text-left' },
             React.createElement('div', { className: 'font-bold text-[#1B3B5F]' }, 'Руководитель'),
-            React.createElement('div', { className: 'text-xs text-gray-400 mt-0.5' }, 'Тарифы, расчёт зарплаты, все данные')
+            React.createElement('div', { className: 'text-xs text-slate-400 mt-0.5' }, 'Тарифы, расчёт зарплаты, все данные')
           )
         ),
         React.createElement('div', { className: 'flex items-center gap-3 mb-2' },
-          React.createElement('span', { className: 'text-[11px] text-gray-400 tracking-wider font-medium' }, 'ФЛОРИСТЫ'),
-          React.createElement('div', { className: 'flex-1 h-px bg-gray-200' })
+          React.createElement('span', { className: 'text-[11px] text-slate-400 tracking-wider font-medium' }, 'ФЛОРИСТЫ'),
+          React.createElement('div', { className: 'flex-1 h-px bg-white/70' })
         ),
         React.createElement('div', { className: 'grid grid-cols-2' },
           florists.map(function (f) {
             return React.createElement('button', {
               key: f,
               onClick: function () { setLoginTarget(f); setPasswordInput(''); setLoginError(''); },
-              className: 'text-left py-3 pr-4 border-b border-gray-100 text-[#1B3B5F] font-medium hover:text-orange-600 transition-colors'
+              className: 'text-left py-3 pr-4 border-b border-white/60 text-[#1B3B5F] font-medium hover:text-orange-500 transition-colors'
             }, f);
           })
         )
       )
     );
   }
-
   var isManager = currentUser === 'manager';
-
   if (!isManager) {
     var firstDay = new Date(viewYear, viewMonth, 1);
     var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -693,37 +650,31 @@ function PayrollApp() {
     var cells = [];
     for (var i = 0; i < startWeekday; i++) cells.push(null);
     for (var d2 = 1; d2 <= daysInMonth; d2++) cells.push(d2);
-
     var slotsByDay = {};
     availableSlots.forEach(function (slot) {
       var day = parseInt(slot.date.slice(8, 10), 10);
       if (!slotsByDay[day]) slotsByDay[day] = [];
       slotsByDay[day].push(slot);
     });
-
     var myWorkDayNumbers = workDays.filter(function (w) { return w.florist === currentUser; })
       .map(function (w) { return new Date(w.date); })
       .filter(function (d) { return d.getMonth() === viewMonth && d.getFullYear() === viewYear; })
       .map(function (d) { return d.getDate(); })
       .sort(function (a, b) { return a - b; });
-
     var myShiftRate = shiftRates[currentUser] != null ? shiftRates[currentUser] : DEFAULT_SHIFT_RATE;
     var isAdmin = isSalaried(currentUser);
     var subKey = submissionKey(currentUser, viewMonth, viewYear);
     var mySubmission = submissions[subKey];
     var myStatus = mySubmission ? mySubmission.status : 'draft';
     var locked = myStatus === 'pending' || myStatus === 'approved';
-
     function colleaguesOnDate(dateStr) {
       return workDays.filter(function (w) { return w.date === dateStr && w.florist !== currentUser; }).map(function (w) { return w.florist; });
     }
-
     var myExtraEarnings = extraEarnings.filter(function (e) {
       var d = new Date(e.date);
       return e.florist === currentUser && d.getMonth() === viewMonth && d.getFullYear() === viewYear;
     });
     var myExtraTotal = myExtraEarnings.reduce(function (s, e) { return s + (parseFloat(e.amount) || 0); }, 0);
-
     var myPayroll = payrollByFlorist[currentUser] || { shiftPay: 0, zamena: 0, refresh: 0, onetime: 0, extra: 0, total: 0 };
     var myTiles = [];
     myTiles.push({ label: isAdmin ? 'Оклад' : 'Смены', value: myPayroll.shiftPay });
@@ -731,30 +682,30 @@ function PayrollApp() {
     myTiles.push({ label: 'Рефреши', value: myPayroll.refresh });
     if (myPayroll.onetime > 0) myTiles.push({ label: 'Разовые', value: myPayroll.onetime });
     if (myPayroll.extra > 0) myTiles.push({ label: 'Доп. заработок', value: myPayroll.extra });
-
-    return React.createElement('div', { className: 'min-h-screen bg-white' },
+    return React.createElement('div', { className: GLASS_BG + ' relative' },
+      React.createElement(GlassBackdrop, null),
       failBanner,
-      React.createElement('div', { className: 'bg-white border-b-2 border-black px-4 py-4 flex items-center justify-between sticky top-0 z-10' },
+      React.createElement('div', { className: 'relative z-10 bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 py-4 flex items-center justify-between sticky top-0 shadow-sm' },
         React.createElement('div', { className: 'flex items-center gap-2' },
-          React.createElement('div', { className: 'bg-orange-500 p-2 rounded-lg' }, React.createElement(Calendar, { className: 'w-5 h-5 text-white' })),
+          React.createElement('div', { className: 'bg-gradient-to-br from-orange-400 to-orange-500 p-2 rounded-xl shadow-lg shadow-orange-500/30' }, React.createElement(Calendar, { className: 'w-5 h-5 text-white' })),
           React.createElement('div', null,
-            React.createElement('div', { className: 'font-semibold text-black' }, currentUser),
-            React.createElement('div', { className: 'text-xs text-black/40' }, 'Расписание выездов')
+            React.createElement('div', { className: 'font-semibold text-slate-800' }, currentUser),
+            React.createElement('div', { className: 'text-xs text-slate-400' }, 'Расписание выездов')
           )
         ),
-        React.createElement('button', { onClick: function () { setCurrentUser(null); setPasswordInput(''); }, className: 'text-black/40 hover:text-orange-500 p-2' }, React.createElement(LogOut, { className: 'w-5 h-5' }))
+        React.createElement('button', { onClick: function () { setCurrentUser(null); setPasswordInput(''); }, className: 'text-slate-400 hover:text-orange-500 p-2' }, React.createElement(LogOut, { className: 'w-5 h-5' }))
       ),
-      React.createElement('div', { className: 'p-4 max-w-2xl mx-auto' },
-        React.createElement('div', { className: 'flex items-center justify-between mb-4 bg-white rounded-xl border-2 border-black p-3' },
-          React.createElement('button', { onClick: function () { changeMonth(-1); }, className: 'p-2 hover:bg-orange-50 rounded-lg' }, React.createElement(ChevronLeft, { className: 'w-5 h-5 text-black' })),
-          React.createElement('div', { className: 'font-semibold text-black' }, monthNames[viewMonth] + ' ' + viewYear),
-          React.createElement('button', { onClick: function () { changeMonth(1); }, className: 'p-2 hover:bg-orange-50 rounded-lg' }, React.createElement(ChevronRight, { className: 'w-5 h-5 text-black' }))
+      React.createElement('div', { className: 'relative z-10 p-4 max-w-2xl mx-auto' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-4 ' + GLASS_CARD + ' p-3' },
+          React.createElement('button', { onClick: function () { changeMonth(-1); }, className: 'p-2 hover:bg-white/70 rounded-full transition-colors' }, React.createElement(ChevronLeft, { className: 'w-5 h-5 text-slate-700' })),
+          React.createElement('div', { className: 'font-semibold text-slate-800' }, monthNames[viewMonth] + ' ' + viewYear),
+          React.createElement('button', { onClick: function () { changeMonth(1); }, className: 'p-2 hover:bg-white/70 rounded-full transition-colors' }, React.createElement(ChevronRight, { className: 'w-5 h-5 text-slate-700' }))
         ),
-        React.createElement('div', { className: 'bg-black rounded-xl p-4 mb-4' },
+        React.createElement('div', { className: 'bg-slate-900/60 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl p-4 mb-4' },
           React.createElement('div', { className: 'text-white/60 text-xs font-medium mb-2' }, 'Мой заработок за ' + monthNames[viewMonth]),
           React.createElement('div', { className: 'grid grid-cols-2 gap-2 mb-3' },
             myTiles.map(function (t) {
-              return React.createElement('div', { key: t.label, className: 'bg-white/10 rounded-lg px-3 py-2' },
+              return React.createElement('div', { key: t.label, className: 'bg-white/10 backdrop-blur border border-white/10 rounded-2xl px-3 py-2' },
                 React.createElement('div', { className: 'text-white/50 text-[10px]' }, t.label),
                 React.createElement('div', { className: 'text-white font-semibold text-sm' }, formatMoney(t.value) + ' ₽')
               );
@@ -762,24 +713,24 @@ function PayrollApp() {
           ),
           React.createElement('div', { className: 'flex items-center justify-between pt-2 border-t border-white/10' },
             React.createElement('span', { className: 'text-white text-sm font-medium' }, 'Итого'),
-            React.createElement('span', { className: 'text-orange-500 font-bold text-lg' }, formatMoney(myPayroll.total) + ' ₽')
+            React.createElement('span', { className: 'text-orange-300 font-bold text-lg' }, formatMoney(myPayroll.total) + ' ₽')
           )
         ),
-        myStatus === 'pending' && React.createElement('div', { className: 'bg-orange-500 text-white rounded-xl p-3 mb-4 text-sm font-medium text-center' }, 'Расписание отправлено — ожидает решения руководителя'),
-        myStatus === 'approved' && React.createElement('div', { className: 'bg-black text-white rounded-xl p-3 mb-4 flex items-center justify-between' },
+        myStatus === 'pending' && React.createElement('div', { className: 'bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-3xl p-3 mb-4 text-sm font-medium text-center shadow-lg shadow-orange-500/30' }, 'Расписание отправлено — ожидает решения руководителя'),
+        myStatus === 'approved' && React.createElement('div', { className: 'bg-slate-900/60 backdrop-blur-xl border border-white/20 text-white rounded-3xl p-3 mb-4 flex items-center justify-between shadow-xl' },
           React.createElement('span', { className: 'text-sm font-medium' }, '✓ Расписание утверждено'),
-          React.createElement('button', { onClick: function () { editSchedule(currentUser); }, className: 'text-orange-500 text-xs font-medium underline' }, 'Изменить')
+          React.createElement('button', { onClick: function () { editSchedule(currentUser); }, className: 'text-orange-300 text-xs font-medium underline' }, 'Изменить')
         ),
-        myStatus === 'rejected' && React.createElement('div', { className: 'border-2 border-orange-500 rounded-xl p-3 mb-4' },
+        myStatus === 'rejected' && React.createElement('div', { className: 'bg-white/55 backdrop-blur-xl rounded-3xl border border-orange-300 p-3 mb-4 shadow-lg' },
           React.createElement('div', { className: 'text-orange-600 text-sm font-semibold mb-1' }, 'Отклонено руководителем'),
-          mySubmission.note && React.createElement('div', { className: 'text-black text-sm' }, mySubmission.note)
+          mySubmission.note && React.createElement('div', { className: 'text-slate-700 text-sm' }, mySubmission.note)
         ),
-        React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-3 mb-4' },
-          React.createElement('div', { className: 'text-sm font-semibold text-black mb-1' }, isAdmin ? 'Доступ к отелям' : 'Мой график'),
-          React.createElement('p', { className: 'text-xs text-black/50 mb-3' },
+        React.createElement('div', { className: GLASS_CARD + ' p-3 mb-4' },
+          React.createElement('div', { className: 'text-sm font-semibold text-slate-800 mb-1' }, isAdmin ? 'Доступ к отелям' : 'Мой график'),
+          React.createElement('p', { className: 'text-xs text-slate-400 mb-3' },
             isAdmin ? 'У вас фиксированный оклад — отметка дня открывает доступ к отельным выездам, отдельная оплата за выход не начисляется.' : ('Отметьте рабочие дни — ставка за выход ' + formatMoney(myShiftRate) + ' ₽/смена.')
           ),
-          React.createElement('div', { className: 'grid grid-cols-7 gap-1.5 mb-1.5 text-xs text-black/40 font-medium text-center' }, WEEKDAYS.map(function (w) { return React.createElement('div', { key: w }, w); })),
+          React.createElement('div', { className: 'grid grid-cols-7 gap-1.5 mb-1.5 text-xs text-slate-400 font-medium text-center' }, WEEKDAYS.map(function (w) { return React.createElement('div', { key: w }, w); })),
           React.createElement('div', { className: 'grid grid-cols-7 gap-1.5' },
             cells.map(function (day, idx) {
               if (!day) return React.createElement('div', { key: idx });
@@ -791,46 +742,46 @@ function PayrollApp() {
                 key: idx,
                 onClick: function () { if (!cellDisabled) toggleWorkDay(currentUser, dateStr); },
                 disabled: cellDisabled,
-                className: 'h-12 rounded-lg border-2 flex items-center justify-center transition-colors ' +
-                  (working ? 'bg-orange-500 border-orange-500 text-white' : isToday ? 'border-orange-300 text-black' : 'border-black/10 text-black/60 hover:bg-orange-50') +
-                  (cellDisabled ? ' opacity-40 cursor-not-allowed hover:bg-transparent' : '')
+                className: 'h-12 rounded-2xl border-2 flex items-center justify-center transition-all ' +
+                  (working ? 'bg-gradient-to-br from-orange-400 to-orange-500 border-transparent text-white shadow-lg shadow-orange-500/30' : isToday ? 'border-orange-300 text-slate-700 bg-white/40' : 'border-white/70 bg-white/40 text-slate-500 hover:bg-white/70') +
+                  (cellDisabled ? ' opacity-40 cursor-not-allowed hover:bg-white/40' : '')
               }, React.createElement('span', { className: 'text-xs font-medium' }, day));
             })
           ),
-          !isAdmin && React.createElement('p', { className: 'text-[10px] text-black/40 mt-2' }, 'Смен в этом месяце: ' + myWorkDayNumbers.length + ' · Оплата за смены: ' + formatMoney(myWorkDayNumbers.length * myShiftRate) + ' ₽'),
-          isAdmin && React.createElement('p', { className: 'text-[10px] text-black/40 mt-2' }, 'Оклад за месяц: ' + formatMoney(myPayroll.shiftPay) + ' ₽ (не зависит от количества выездов)')
+          !isAdmin && React.createElement('p', { className: 'text-[10px] text-slate-400 mt-2' }, 'Смен в этом месяце: ' + myWorkDayNumbers.length + ' · Оплата за смены: ' + formatMoney(myWorkDayNumbers.length * myShiftRate) + ' ₽'),
+          isAdmin && React.createElement('p', { className: 'text-[10px] text-slate-400 mt-2' }, 'Оклад за месяц: ' + formatMoney(myPayroll.shiftPay) + ' ₽ (не зависит от количества выездов)')
         ),
-        React.createElement('div', { className: 'text-xs font-medium text-black/50 mb-2 px-1' }, 'Расписание по отелям — доступно в мои рабочие дни'),
+        React.createElement('div', { className: 'text-xs font-medium text-slate-400 mb-2 px-1' }, 'Расписание по отелям — доступно в мои рабочие дни'),
         myWorkDayNumbers.length === 0
-          ? React.createElement('div', { className: 'text-center text-black/40 py-8 text-sm bg-white rounded-xl border-2 border-black' }, 'Сначала отметьте рабочие дни выше')
+          ? React.createElement('div', { className: 'text-center text-slate-400 py-8 text-sm ' + GLASS_CARD }, 'Сначала отметьте рабочие дни выше')
           : React.createElement('div', { className: 'space-y-2' },
               myWorkDayNumbers.map(function (day) {
                 var dateStr = viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
                 var daySlots = slotsByDay[day] || [];
                 var colleagues = colleaguesOnDate(dateStr);
-                return React.createElement('div', { key: day, className: 'bg-white rounded-xl border-2 border-black p-3' },
-                  React.createElement('div', { className: 'text-sm font-semibold text-black mb-1' }, new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })),
-                  colleagues.length > 0 && React.createElement('div', { className: 'text-xs text-orange-600 mb-2' }, 'С вами в смене: ' + colleagues.join(', ')),
+                return React.createElement('div', { key: day, className: GLASS_CARD + ' p-3' },
+                  React.createElement('div', { className: 'text-sm font-semibold text-slate-800 mb-1' }, new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })),
+                  colleagues.length > 0 && React.createElement('div', { className: 'text-xs text-orange-500 mb-2' }, 'С вами в смене: ' + colleagues.join(', ')),
                   daySlots.length === 0
-                    ? React.createElement('div', { className: 'text-xs text-black/30' }, 'Нет выездов в этот день')
+                    ? React.createElement('div', { className: 'text-xs text-slate-400' }, 'Нет выездов в этот день')
                     : React.createElement('div', { className: 'space-y-1.5' },
                         daySlots.map(function (slot, idx) {
                           var taken = slotBookings(slot.date, slot.hotel, slot.visitType);
                           var isFull = taken.length >= slot.maxPerSlot;
                           var iAmIn = taken.some(function (t) { return t.florist === currentUser; });
-                          return React.createElement('div', { key: idx, className: 'flex items-center justify-between rounded-lg px-3 py-2 border ' + (iAmIn ? 'bg-orange-50 border-orange-300' : 'bg-white border-black/10') },
+                          return React.createElement('div', { key: idx, className: 'flex items-center justify-between rounded-2xl px-3 py-2 border ' + (iAmIn ? 'bg-orange-100/60 border-orange-300' : 'bg-white/40 border-white/70') },
                             React.createElement('div', null,
-                              React.createElement('div', { className: 'text-sm text-black font-medium' }, slot.hotel),
-                              React.createElement('div', { className: 'text-xs text-black/40 flex items-center gap-1.5 mt-0.5' },
-                                React.createElement('span', { className: 'bg-white border border-black/20 px-1.5 py-0.5 rounded-full' }, slot.visitType === 'zamena' ? 'Замена' : 'Рефреш'),
-                                taken.length > 0 && React.createElement('span', null, taken.map(function (t) { return t.florist; }).join(', ') + ' (' + taken.length + '/' + slot.maxPerSlot + ')')
+                              React.createElement('div', { className: 'text-sm text-slate-800 font-medium' }, slot.hotel),
+                              React.createElement('div', { className: 'text-xs text-slate-400 flex items-center gap-1.5 mt-0.5' },
+                                React.createElement('span', { className: 'bg-white/70 border border-white/70 px-1.5 py-0.5 rounded-full' }, slot.visitType === 'zamena' ? 'Замена' : 'Рефреш'),
+                                taken.length > 0 && React.createElement('span', { className: 'text-slate-500' }, taken.map(function (t) { return t.florist; }).join(', ') + ' (' + taken.length + '/' + slot.maxPerSlot + ')')
                               )
                             ),
                             React.createElement('button', {
                               onClick: function () { if (!locked) toggleBooking(slot, currentUser); },
                               disabled: (isFull && !iAmIn) || locked,
-                              className: 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ' +
-                                (iAmIn ? 'bg-orange-100 text-orange-700 hover:bg-black/10 hover:text-black' : (isFull || locked) ? 'bg-black/10 text-black/30 cursor-not-allowed' : 'bg-orange-500 text-white hover:bg-orange-600')
+                              className: 'px-4 py-1.5 rounded-full text-xs font-medium transition-all shrink-0 ' +
+                                (iAmIn ? 'bg-orange-200/70 text-orange-700 hover:bg-white/60' : (isFull || locked) ? 'bg-slate-400/20 text-slate-400 cursor-not-allowed' : GLASS_BTN_ORANGE + ' hover:scale-105')
                             }, iAmIn ? 'Я еду ✓' : isFull ? 'Занято' : 'Встать')
                           );
                         })
@@ -840,64 +791,64 @@ function PayrollApp() {
             ),
         myWorkDayNumbers.length > 0 && (myStatus === 'draft' || myStatus === 'rejected') && React.createElement('button', {
           onClick: function () { submitSchedule(currentUser); },
-          className: 'w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-medium mt-4'
+          className: 'w-full ' + GLASS_BTN_ORANGE + ' py-3 font-medium mt-4'
         }, 'Отправить на утверждение'),
-        isAdmin && React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-3 mt-4' },
+        isAdmin && React.createElement('div', { className: GLASS_CARD + ' p-3 mt-4' },
           React.createElement('div', { className: 'flex items-center justify-between mb-1' },
-            React.createElement('div', { className: 'text-sm font-semibold text-black' }, 'Доп. заработок'),
-            React.createElement('button', { onClick: function () { setShowExtraEarningForm(!showExtraEarningForm); }, className: 'text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-full font-medium' }, showExtraEarningForm ? 'Скрыть' : '+ Добавить')
+            React.createElement('div', { className: 'text-sm font-semibold text-slate-800' }, 'Доп. заработок'),
+            React.createElement('button', { onClick: function () { setShowExtraEarningForm(!showExtraEarningForm); }, className: 'text-xs ' + GLASS_BTN_ORANGE + ' px-4 py-1.5 font-medium' }, showExtraEarningForm ? 'Скрыть' : '+ Добавить')
           ),
-          React.createElement('p', { className: 'text-xs text-black/50 mb-3' }, 'КП, создание конструкций и прочие доп. работы — вписываете сами.'),
+          React.createElement('p', { className: 'text-xs text-slate-400 mb-3' }, 'КП, создание конструкций и прочие доп. работы — вписываете сами.'),
           showExtraEarningForm && React.createElement('div', { className: 'space-y-2 mb-3' },
-            React.createElement('input', { type: 'date', value: newExtraEarning.date, onChange: function (e) { setNewExtraEarning(Object.assign({}, newExtraEarning, { date: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
-            React.createElement('input', { type: 'text', placeholder: 'Описание (например: КП для отеля X)', value: newExtraEarning.description, onChange: function (e) { setNewExtraEarning(Object.assign({}, newExtraEarning, { description: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
-            React.createElement('input', { type: 'number', placeholder: 'Сумма, ₽', value: newExtraEarning.amount, onChange: function (e) { setNewExtraEarning(Object.assign({}, newExtraEarning, { amount: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
-            React.createElement('button', { onClick: function () { addExtraEarning(currentUser); }, className: 'w-full bg-black hover:bg-black/85 text-white py-2 rounded-lg text-sm font-medium' }, 'Сохранить')
+            React.createElement('input', { type: 'date', value: newExtraEarning.date, onChange: function (e) { setNewExtraEarning(Object.assign({}, newExtraEarning, { date: e.target.value })); }, className: 'w-full px-3 py-2 ' + GLASS_INPUT + ' text-sm' }),
+            React.createElement('input', { type: 'text', placeholder: 'Описание (например: КП для отеля X)', value: newExtraEarning.description, onChange: function (e) { setNewExtraEarning(Object.assign({}, newExtraEarning, { description: e.target.value })); }, className: 'w-full px-3 py-2 ' + GLASS_INPUT + ' text-sm' }),
+            React.createElement('input', { type: 'number', placeholder: 'Сумма, ₽', value: newExtraEarning.amount, onChange: function (e) { setNewExtraEarning(Object.assign({}, newExtraEarning, { amount: e.target.value })); }, className: 'w-full px-3 py-2 ' + GLASS_INPUT + ' text-sm' }),
+            React.createElement('button', { onClick: function () { addExtraEarning(currentUser); }, className: 'w-full ' + GLASS_BTN_DARK + ' py-2 text-sm font-medium' }, 'Сохранить')
           ),
           React.createElement('div', { className: 'space-y-1.5' },
             myExtraEarnings.map(function (e) {
-              return React.createElement('div', { key: e.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
-                React.createElement('span', { className: 'text-black' }, new Date(e.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ' + (e.description || '—')),
+              return React.createElement('div', { key: e.id, className: 'flex items-center justify-between ' + GLASS_ROW + ' px-3 py-2 text-sm' },
+                React.createElement('span', { className: 'text-slate-700' }, new Date(e.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ' + (e.description || '—')),
                 React.createElement('div', { className: 'flex items-center gap-2' },
-                  React.createElement('span', { className: 'font-medium text-black' }, formatMoney(parseFloat(e.amount) || 0) + ' ₽'),
-                  React.createElement('button', { onClick: function () { removeExtraEarning(e.id); }, className: 'text-black/30 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
+                  React.createElement('span', { className: 'font-medium text-slate-800' }, formatMoney(parseFloat(e.amount) || 0) + ' ₽'),
+                  React.createElement('button', { onClick: function () { removeExtraEarning(e.id); }, className: 'text-slate-300 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
                 )
               );
             })
           ),
-          myExtraEarnings.length > 0 && React.createElement('p', { className: 'text-xs text-black/40 mt-2 text-right' }, 'Итого доп. заработка: ' + formatMoney(myExtraTotal) + ' ₽')
+          myExtraEarnings.length > 0 && React.createElement('p', { className: 'text-xs text-slate-400 mt-2 text-right' }, 'Итого доп. заработка: ' + formatMoney(myExtraTotal) + ' ₽')
         )
       )
     );
   }
-
-  return React.createElement('div', { className: 'min-h-screen bg-white' },
+  return React.createElement('div', { className: GLASS_BG + ' relative' },
+    React.createElement(GlassBackdrop, null),
     failBanner,
-    React.createElement('div', { className: 'bg-white border-b-2 border-black px-4 py-4 flex items-center justify-between sticky top-0 z-10' },
+    React.createElement('div', { className: 'relative z-10 bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 py-4 flex items-center justify-between sticky top-0 shadow-sm' },
       React.createElement('div', { className: 'flex items-center gap-2' },
-        React.createElement('div', { className: 'bg-black p-2 rounded-lg' }, React.createElement(Lock, { className: 'w-5 h-5 text-orange-500' })),
+        React.createElement('div', { className: 'bg-slate-900/70 backdrop-blur p-2 rounded-xl shadow-lg' }, React.createElement(Lock, { className: 'w-5 h-5 text-orange-300' })),
         React.createElement('div', null,
-          React.createElement('div', { className: 'font-semibold text-black' }, 'Руководитель'),
-          React.createElement('div', { className: 'text-xs text-black/40 flex items-center gap-1.5' }, 'Система учёта рабочего времени', saving && React.createElement('span', { className: 'text-orange-500' }, '· сохранение…'))
+          React.createElement('div', { className: 'font-semibold text-slate-800' }, 'Руководитель'),
+          React.createElement('div', { className: 'text-xs text-slate-400 flex items-center gap-1.5' }, 'Система учёта рабочего времени', saving && React.createElement('span', { className: 'text-orange-500' }, '· сохранение…'))
         )
       ),
       React.createElement('div', { className: 'flex items-center gap-2' },
-        React.createElement('button', { onClick: exportCSV, className: 'flex items-center gap-1.5 text-sm bg-black hover:bg-black/85 text-white px-3 py-2 rounded-lg' }, React.createElement(Download, { className: 'w-4 h-4' }), 'CSV'),
-        React.createElement('button', { onClick: function () { setCurrentUser(null); setPasswordInput(''); }, className: 'text-black/40 hover:text-orange-500 p-2' }, React.createElement(LogOut, { className: 'w-5 h-5' }))
+        React.createElement('button', { onClick: exportCSV, className: 'flex items-center gap-1.5 text-sm ' + GLASS_BTN_DARK + ' px-4 py-2' }, React.createElement(Download, { className: 'w-4 h-4' }), 'CSV'),
+        React.createElement('button', { onClick: function () { setCurrentUser(null); setPasswordInput(''); }, className: 'text-slate-400 hover:text-orange-500 p-2' }, React.createElement(LogOut, { className: 'w-5 h-5' }))
       )
     ),
-    React.createElement('div', { className: 'p-4 max-w-6xl mx-auto' },
-      React.createElement('div', { className: 'flex items-center justify-between mb-4 bg-white rounded-xl border-2 border-black p-3' },
-        React.createElement('button', { onClick: function () { changeMonth(-1); }, className: 'p-2 hover:bg-orange-50 rounded-lg' }, React.createElement(ChevronLeft, { className: 'w-5 h-5 text-black' })),
-        React.createElement('div', { className: 'font-semibold text-black' }, monthNames[viewMonth] + ' ' + viewYear),
-        React.createElement('button', { onClick: function () { changeMonth(1); }, className: 'p-2 hover:bg-orange-50 rounded-lg' }, React.createElement(ChevronRight, { className: 'w-5 h-5 text-black' }))
+    React.createElement('div', { className: 'relative z-10 p-4 max-w-6xl mx-auto' },
+      React.createElement('div', { className: 'flex items-center justify-between mb-4 ' + GLASS_CARD + ' p-3' },
+        React.createElement('button', { onClick: function () { changeMonth(-1); }, className: 'p-2 hover:bg-white/70 rounded-full transition-colors' }, React.createElement(ChevronLeft, { className: 'w-5 h-5 text-slate-700' })),
+        React.createElement('div', { className: 'font-semibold text-slate-800' }, monthNames[viewMonth] + ' ' + viewYear),
+        React.createElement('button', { onClick: function () { changeMonth(1); }, className: 'p-2 hover:bg-white/70 rounded-full transition-colors' }, React.createElement(ChevronRight, { className: 'w-5 h-5 text-slate-700' }))
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
-        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(UserPlus, { className: 'w-4 h-4 text-orange-500' }), 'Флористы — команда'),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Переименуйте при смене ФИО, удалите при увольнении, добавьте при найме.'),
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-slate-800 mb-1 flex items-center gap-2' }, React.createElement(UserPlus, { className: 'w-4 h-4 text-orange-500' }), 'Флористы — команда'),
+        React.createElement('p', { className: 'text-xs text-slate-400 mb-3' }, 'Переименуйте при смене ФИО, удалите при увольнении, добавьте при найме.'),
         React.createElement('div', { className: 'space-y-2 mb-3' },
           florists.map(function (f) {
-            return React.createElement('div', { key: f, className: 'flex items-center gap-2 bg-orange-50 rounded-lg px-3 py-2' },
+            return React.createElement('div', { key: f, className: 'flex items-center gap-2 ' + GLASS_ROW + ' px-3 py-2' },
               React.createElement('input', {
                 type: 'text', value: renameDrafts[f] != null ? renameDrafts[f] : f,
                 onChange: function (e) { var nd = Object.assign({}, renameDrafts); nd[f] = e.target.value; setRenameDrafts(nd); },
@@ -909,7 +860,7 @@ function PayrollApp() {
                     var nd = Object.assign({}, renameDrafts); delete nd[f]; setRenameDrafts(nd);
                   }
                 },
-                className: 'flex-1 px-2 py-1.5 border-2 border-black rounded-md text-sm outline-none focus:border-orange-500 text-black'
+                className: 'flex-1 px-2 py-1.5 ' + GLASS_INPUT + ' text-sm'
               }),
               React.createElement('button', {
                 onClick: function () {
@@ -920,113 +871,113 @@ function PayrollApp() {
                   }
                 },
                 disabled: !renameDrafts[f] || !renameDrafts[f].trim() || renameDrafts[f] === f,
-                className: 'text-xs bg-black hover:bg-black/85 disabled:bg-black/10 disabled:text-black/30 text-white px-3 py-1.5 rounded-md font-medium shrink-0'
+                className: 'text-xs ' + GLASS_BTN_DARK + ' disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 px-4 py-1.5 font-medium shrink-0'
               }, 'Сохранить'),
-              React.createElement('button', { onClick: function () { removeFlorist(f); }, className: 'text-black/30 hover:text-orange-500 shrink-0', title: 'Уволить' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
+              React.createElement('button', { onClick: function () { removeFlorist(f); }, className: 'text-slate-300 hover:text-orange-500 shrink-0', title: 'Уволить' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
             );
           })
         ),
         React.createElement('div', { className: 'flex items-center gap-2' },
-          React.createElement('input', { type: 'text', value: newFloristName, onChange: function (e) { setNewFloristName(e.target.value); }, placeholder: 'Имя нового флориста', className: 'flex-1 px-3 py-2 border-2 border-black rounded-lg text-sm outline-none focus:border-orange-500 text-black' }),
+          React.createElement('input', { type: 'text', value: newFloristName, onChange: function (e) { setNewFloristName(e.target.value); }, placeholder: 'Имя нового флориста', className: 'flex-1 px-3 py-2 ' + GLASS_INPUT + ' text-sm' }),
           React.createElement('button', {
             onClick: function () { addFlorist(newFloristName); setNewFloristName(''); },
             disabled: !newFloristName.trim() || florists.indexOf(newFloristName.trim()) !== -1,
-            className: 'bg-orange-500 hover:bg-orange-600 disabled:bg-black/10 disabled:text-black/30 text-white px-4 py-2 rounded-lg text-sm font-medium shrink-0'
+            className: GLASS_BTN_ORANGE + ' disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 disabled:shadow-none px-5 py-2 text-sm font-medium shrink-0'
           }, 'Добавить')
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
-        React.createElement('h2', { className: 'font-semibold text-black mb-3 flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Расписания на утверждение'),
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-slate-800 mb-3 flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Расписания на утверждение'),
         (function () {
           var relevant = florists.map(function (f) { return { florist: f, key: submissionKey(f, viewMonth, viewYear), sub: submissions[submissionKey(f, viewMonth, viewYear)] }; }).filter(function (x) { return x.sub; });
-          if (relevant.length === 0) return React.createElement('div', { className: 'text-sm text-black/40' }, 'Нет отправленных расписаний за этот месяц');
+          if (relevant.length === 0) return React.createElement('div', { className: 'text-sm text-slate-400' }, 'Нет отправленных расписаний за этот месяц');
           return React.createElement('div', { className: 'space-y-3' },
             relevant.map(function (item) {
               var florist = item.florist, key = item.key, sub = item.sub;
-              return React.createElement('div', { key: key, className: 'border-2 border-black/10 rounded-xl p-3' },
+              return React.createElement('div', { key: key, className: 'bg-white/40 backdrop-blur border border-white/60 rounded-2xl p-3' },
                 React.createElement('div', { className: 'flex items-center justify-between mb-2' },
-                  React.createElement('span', { className: 'font-medium text-black' }, florist),
-                  React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full font-medium ' + (sub.status === 'pending' ? 'bg-orange-100 text-orange-700' : sub.status === 'approved' ? 'bg-black text-white' : 'bg-orange-500 text-white') },
+                  React.createElement('span', { className: 'font-medium text-slate-800' }, florist),
+                  React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full font-medium ' + (sub.status === 'pending' ? 'bg-orange-200/70 text-orange-700' : sub.status === 'approved' ? 'bg-slate-900/70 backdrop-blur text-white' : 'bg-gradient-to-r from-orange-400 to-orange-500 text-white shadow') },
                     sub.status === 'pending' ? 'На рассмотрении' : sub.status === 'approved' ? 'Утверждено' : 'Отклонено')
                 ),
                 sub.status === 'pending'
                   ? React.createElement('div', { className: 'space-y-2' },
                       React.createElement('textarea', {
                         value: noteDrafts[key] || '', onChange: function (e) { var nd = Object.assign({}, noteDrafts); nd[key] = e.target.value; setNoteDrafts(nd); },
-                        placeholder: 'Примечание (необязательно)', className: 'w-full px-3 py-2 border-2 border-black rounded-lg text-sm outline-none focus:border-orange-500 text-black resize-none', rows: 2
+                        placeholder: 'Примечание (необязательно)', className: 'w-full px-3 py-2 ' + GLASS_INPUT + ' text-sm resize-none', rows: 2
                       }),
                       React.createElement('div', { className: 'flex gap-2' },
-                        React.createElement('button', { onClick: function () { decideSubmission(florist, 'approved'); }, className: 'flex-1 bg-black hover:bg-black/85 text-white py-2 rounded-lg text-sm font-medium' }, 'Принять'),
-                        React.createElement('button', { onClick: function () { decideSubmission(florist, 'rejected'); }, className: 'flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-sm font-medium' }, 'Отклонить')
+                        React.createElement('button', { onClick: function () { decideSubmission(florist, 'approved'); }, className: 'flex-1 ' + GLASS_BTN_DARK + ' py-2 text-sm font-medium' }, 'Принять'),
+                        React.createElement('button', { onClick: function () { decideSubmission(florist, 'rejected'); }, className: 'flex-1 ' + GLASS_BTN_ORANGE + ' py-2 text-sm font-medium' }, 'Отклонить')
                       )
                     )
-                  : (sub.note && React.createElement('div', { className: 'text-xs text-black/50' }, 'Примечание: ' + sub.note))
+                  : (sub.note && React.createElement('div', { className: 'text-xs text-slate-400' }, 'Примечание: ' + sub.note))
               );
             })
           );
         })()
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
         React.createElement('div', { className: 'flex items-center justify-between mb-1' },
-          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Lock, { className: 'w-4 h-4 text-orange-500' }), 'Пароли'),
-          React.createElement('button', { onClick: function () { setShowPasswordSettings(!showPasswordSettings); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showPasswordSettings ? 'Скрыть' : 'Изменить')
+          React.createElement('h2', { className: 'font-semibold text-slate-800 flex items-center gap-2' }, React.createElement(Lock, { className: 'w-4 h-4 text-orange-500' }), 'Пароли'),
+          React.createElement('button', { onClick: function () { setShowPasswordSettings(!showPasswordSettings); }, className: 'text-xs ' + GLASS_BTN_DARK + ' px-4 py-1.5 font-medium' }, showPasswordSettings ? 'Скрыть' : 'Изменить')
         ),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, '6 цифр на каждого. Резервный пароль руководителя: ' + MANAGER_BACKUP_PASSWORD + '.'),
+        React.createElement('p', { className: 'text-xs text-slate-400 mb-3' }, '6 цифр на каждого. Резервный пароль руководителя: ' + MANAGER_BACKUP_PASSWORD + '.'),
         showPasswordSettings && React.createElement('div', { className: 'space-y-2' },
           ['manager'].concat(florists).map(function (profile) {
-            return React.createElement('div', { key: profile, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2' },
-              React.createElement('span', { className: 'text-sm text-black' }, profile === 'manager' ? 'Руководитель' : profile),
+            return React.createElement('div', { key: profile, className: 'flex items-center justify-between ' + GLASS_ROW + ' px-3 py-2' },
+              React.createElement('span', { className: 'text-sm text-slate-700' }, profile === 'manager' ? 'Руководитель' : profile),
               React.createElement('div', { className: 'flex items-center gap-2' },
                 React.createElement('input', {
                   type: 'text', inputMode: 'numeric', maxLength: 6, placeholder: passwords[profile],
                   value: newPasswordDrafts[profile] || '',
                   onChange: function (e) { var np = Object.assign({}, newPasswordDrafts); np[profile] = e.target.value.replace(/\D/g, '').slice(0, 6); setNewPasswordDrafts(np); },
-                  className: 'w-24 px-2 py-1.5 border-2 border-black rounded-md text-sm text-center tracking-widest outline-none focus:border-orange-500 text-black'
+                  className: 'w-24 px-2 py-1.5 ' + GLASS_INPUT + ' text-sm text-center tracking-widest'
                 }),
                 React.createElement('button', {
                   onClick: function () { savePassword(profile); },
                   disabled: !newPasswordDrafts[profile] || newPasswordDrafts[profile].length !== 6,
-                  className: 'text-xs bg-orange-500 hover:bg-orange-600 disabled:bg-black/10 disabled:text-black/30 text-white px-3 py-1.5 rounded-md font-medium'
+                  className: 'text-xs ' + GLASS_BTN_ORANGE + ' disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 disabled:shadow-none px-4 py-1.5 font-medium'
                 }, 'Сохранить')
               )
             );
           })
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
-        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Оклады'),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'На фиксированном окладе: ' + salariedFlorists.join(', ') + '. У остальных — ставка за смену ниже.'),
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-slate-800 mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Оклады'),
+        React.createElement('p', { className: 'text-xs text-slate-400 mb-3' }, 'На фиксированном окладе: ' + salariedFlorists.join(', ') + '. У остальных — ставка за смену ниже.'),
         React.createElement('div', { className: 'space-y-2' },
           salariedFlorists.map(function (f) {
-            return React.createElement('div', { key: f, className: 'flex items-center justify-between bg-orange-500 rounded-lg px-3 py-2' },
+            return React.createElement('div', { key: f, className: 'flex items-center justify-between bg-gradient-to-r from-orange-400 to-orange-500 rounded-2xl px-3 py-2 shadow-lg shadow-orange-500/20' },
               React.createElement('span', { className: 'text-sm text-white font-medium' }, f + ', ₽/мес'),
               React.createElement('input', {
                 type: 'number', value: salaries[f] != null ? salaries[f] : DEFAULT_SALARY,
                 onChange: function (e) { var sl = Object.assign({}, salaries); sl[f] = parseFloat(e.target.value) || 0; setSalaries(sl); },
-                className: 'w-24 px-2 py-1 border-2 border-white rounded-md text-sm text-right outline-none bg-orange-500 text-white placeholder-white/60'
+                className: 'w-24 px-2 py-1 border-2 border-white/50 rounded-xl text-sm text-right outline-none bg-white/20 text-white placeholder-white/60'
               })
             );
           })
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
-        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Ставка за смену (выход)'),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Начисляется за каждый отмеченный рабочий день, отдельно от оплаты за отель.'),
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-slate-800 mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Ставка за смену (выход)'),
+        React.createElement('p', { className: 'text-xs text-slate-400 mb-3' }, 'Начисляется за каждый отмеченный рабочий день, отдельно от оплаты за отель.'),
         React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-3 gap-2' },
           florists.filter(function (f) { return !isSalaried(f); }).map(function (f) {
-            return React.createElement('div', { key: f, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2' },
-              React.createElement('span', { className: 'text-sm text-black' }, f),
+            return React.createElement('div', { key: f, className: 'flex items-center justify-between ' + GLASS_ROW + ' px-3 py-2' },
+              React.createElement('span', { className: 'text-sm text-slate-700' }, f),
               React.createElement('input', {
                 type: 'number', value: shiftRates[f] != null ? shiftRates[f] : DEFAULT_SHIFT_RATE,
                 onChange: function (e) { var sr = Object.assign({}, shiftRates); sr[f] = parseFloat(e.target.value) || 0; setShiftRates(sr); },
-                className: 'w-20 px-2 py-1 border-2 border-black rounded-md text-sm text-right outline-none focus:border-orange-500 text-black'
+                className: 'w-20 px-2 py-1 ' + GLASS_INPUT + ' text-sm text-right'
               })
             );
           })
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
-        React.createElement('h2', { className: 'font-semibold text-black mb-3 flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Рабочие дни флористов'),
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-slate-800 mb-3 flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Рабочие дни флористов'),
         React.createElement('div', { className: 'overflow-x-auto' },
           (function () {
             var daysInMonth2 = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -1035,18 +986,18 @@ function PayrollApp() {
             return React.createElement('table', { className: 'text-xs border-collapse' },
               React.createElement('thead', null,
                 React.createElement('tr', null,
-                  React.createElement('th', { className: 'sticky left-0 bg-white px-2 py-1 text-left text-black/50 border-b-2 border-black' }, 'Флорист'),
-                  days.map(function (dd) { return React.createElement('th', { key: dd, className: 'px-1.5 py-1 text-black/30 font-normal border-b-2 border-black min-w-6' }, dd); })
+                  React.createElement('th', { className: 'sticky left-0 bg-white/70 backdrop-blur px-2 py-1 text-left text-slate-400 border-b border-white/60' }, 'Флорист'),
+                  days.map(function (dd) { return React.createElement('th', { key: dd, className: 'px-1.5 py-1 text-slate-300 font-normal border-b border-white/60 min-w-6' }, dd); })
                 )
               ),
               React.createElement('tbody', null,
                 florists.map(function (f) {
                   return React.createElement('tr', { key: f },
-                    React.createElement('td', { className: 'sticky left-0 bg-white px-2 py-1 font-medium text-black border-b border-black/10' }, f),
+                    React.createElement('td', { className: 'sticky left-0 bg-white/70 backdrop-blur px-2 py-1 font-medium text-slate-700 border-b border-white/60' }, f),
                     days.map(function (dd) {
                       var dateStr = viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
                       var working = isWorkDay(f, dateStr);
-                      return React.createElement('td', { key: dd, className: 'text-center border-b border-black/10 py-1' }, working && React.createElement('span', { className: 'inline-block w-3 h-3 bg-orange-500 rounded-full' }));
+                      return React.createElement('td', { key: dd, className: 'text-center border-b border-white/60 py-1' }, working && React.createElement('span', { className: 'inline-block w-3 h-3 bg-gradient-to-br from-orange-400 to-orange-500 rounded-full shadow-sm' }));
                     })
                   );
                 })
@@ -1055,10 +1006,10 @@ function PayrollApp() {
           })()
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
         React.createElement('div', { className: 'flex items-center justify-between mb-3' },
-          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Общее расписание по отелям'),
-          React.createElement('select', { value: filterFlorist, onChange: function (e) { setFilterFlorist(e.target.value); }, className: 'text-sm border-2 border-black rounded-lg px-2 py-1.5 outline-none text-black' },
+          React.createElement('h2', { className: 'font-semibold text-slate-800 flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Общее расписание по отелям'),
+          React.createElement('select', { value: filterFlorist, onChange: function (e) { setFilterFlorist(e.target.value); }, className: 'text-sm ' + GLASS_INPUT + ' px-2 py-1.5' },
             React.createElement('option', { value: 'all' }, 'Все флористы'),
             florists.map(function (f) { return React.createElement('option', { key: f, value: f }, f); })
           )
@@ -1084,17 +1035,17 @@ function PayrollApp() {
             eventsByDay[day].push({ label: o.florist + ': ' + (o.projectName || 'Разовое'), title: o.florist + ' — ' + (o.projectName || 'Разовое') });
           });
           return React.createElement('div', null,
-            React.createElement('div', { className: 'grid grid-cols-7 gap-1.5 mb-1.5 text-xs text-black/40 font-medium text-center' }, WEEKDAYS.map(function (w) { return React.createElement('div', { key: w }, w); })),
+            React.createElement('div', { className: 'grid grid-cols-7 gap-1.5 mb-1.5 text-xs text-slate-400 font-medium text-center' }, WEEKDAYS.map(function (w) { return React.createElement('div', { key: w }, w); })),
             React.createElement('div', { className: 'grid grid-cols-7 gap-1.5' },
               cells2.map(function (day, idx) {
-                return React.createElement('div', { key: idx, className: 'min-h-20 rounded-lg border p-1.5 ' + (day ? 'bg-white border-black/10' : 'border-transparent') },
+                return React.createElement('div', { key: idx, className: 'min-h-20 rounded-2xl border p-1.5 ' + (day ? 'bg-white/40 backdrop-blur border-white/60' : 'border-transparent') },
                   day && React.createElement(React.Fragment, null,
-                    React.createElement('div', { className: 'text-xs text-black/40 mb-1' }, day),
+                    React.createElement('div', { className: 'text-xs text-slate-400 mb-1' }, day),
                     React.createElement('div', { className: 'space-y-0.5' },
                       (eventsByDay[day] || []).slice(0, 3).map(function (ev, i2) {
-                        return React.createElement('div', { key: i2, title: ev.title, className: 'text-[10px] leading-tight px-1 py-0.5 rounded truncate bg-orange-100 text-orange-700' }, ev.label);
+                        return React.createElement('div', { key: i2, title: ev.title, className: 'text-[10px] leading-tight px-1 py-0.5 rounded-lg truncate bg-orange-200/60 text-orange-800' }, ev.label);
                       }),
-                      (eventsByDay[day] || []).length > 3 && React.createElement('div', { className: 'text-[10px] text-black/40 px-1' }, '+' + ((eventsByDay[day] || []).length - 3) + ' ещё')
+                      (eventsByDay[day] || []).length > 3 && React.createElement('div', { className: 'text-[10px] text-slate-400 px-1' }, '+' + ((eventsByDay[day] || []).length - 3) + ' ещё')
                     )
                   )
                 );
@@ -1103,12 +1054,12 @@ function PayrollApp() {
           );
         })()
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
-        React.createElement('h2', { className: 'font-semibold text-black mb-3 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Зарплата по типам'),
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-slate-800 mb-3 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Зарплата по типам'),
         React.createElement('div', { className: 'overflow-x-auto' },
           React.createElement('table', { className: 'w-full text-sm' },
             React.createElement('thead', null,
-              React.createElement('tr', { className: 'text-left text-black/50 border-b-2 border-black' },
+              React.createElement('tr', { className: 'text-left text-slate-400 border-b border-white/60' },
                 React.createElement('th', { className: 'py-2 pr-3' }, 'Флорист'),
                 React.createElement('th', { className: 'py-2 pr-3 text-right' }, 'Смены'),
                 React.createElement('th', { className: 'py-2 pr-3 text-right' }, 'Замены'),
@@ -1119,54 +1070,54 @@ function PayrollApp() {
             React.createElement('tbody', null,
               Object.keys(payrollByFlorist).filter(function (name) { var d = payrollByFlorist[name]; return d.count > 0 || d.shifts > 0 || d.extra > 0; }).map(function (name) {
                 var d = payrollByFlorist[name];
-                return React.createElement('tr', { key: name, className: 'border-b border-black/10' },
-                  React.createElement('td', { className: 'py-2 pr-3 font-medium text-black' }, name),
-                  React.createElement('td', { className: 'py-2 pr-3 text-right text-black' }, formatMoney(d.shiftPay) + ' ₽'),
-                  React.createElement('td', { className: 'py-2 pr-3 text-right text-black' }, formatMoney(d.zamena) + ' ₽'),
-                  React.createElement('td', { className: 'py-2 pr-3 text-right text-black' }, formatMoney(d.refresh) + ' ₽'),
-                  React.createElement('td', { className: 'py-2 text-right text-black' }, formatMoney(d.extra) + ' ₽')
+                return React.createElement('tr', { key: name, className: 'border-b border-white/60' },
+                  React.createElement('td', { className: 'py-2 pr-3 font-medium text-slate-700' }, name),
+                  React.createElement('td', { className: 'py-2 pr-3 text-right text-slate-600' }, formatMoney(d.shiftPay) + ' ₽'),
+                  React.createElement('td', { className: 'py-2 pr-3 text-right text-slate-600' }, formatMoney(d.zamena) + ' ₽'),
+                  React.createElement('td', { className: 'py-2 pr-3 text-right text-slate-600' }, formatMoney(d.refresh) + ' ₽'),
+                  React.createElement('td', { className: 'py-2 text-right text-slate-600' }, formatMoney(d.extra) + ' ₽')
                 );
               })
             )
           )
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
-        React.createElement('h2', { className: 'font-semibold text-black mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Корректировка смены (неполный день)'),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Задайте процент от ставки за смену для конкретной даты.'),
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
+        React.createElement('h2', { className: 'font-semibold text-slate-800 mb-1 flex items-center gap-2' }, React.createElement(Users, { className: 'w-4 h-4 text-orange-500' }), 'Корректировка смены (неполный день)'),
+        React.createElement('p', { className: 'text-xs text-slate-400 mb-3' }, 'Задайте процент от ставки за смену для конкретной даты.'),
         monthWorkDays.filter(function (w) { return !isSalaried(w.florist); }).length === 0
-          ? React.createElement('div', { className: 'text-sm text-black/40' }, 'Нет отмеченных смен в этом месяце')
+          ? React.createElement('div', { className: 'text-sm text-slate-400' }, 'Нет отмеченных смен в этом месяце')
           : React.createElement('div', { className: 'space-y-1.5' },
               monthWorkDays.filter(function (w) { return !isSalaried(w.florist); }).sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (w) {
                 var baseRate = shiftRates[w.florist] != null ? shiftRates[w.florist] : DEFAULT_SHIFT_RATE;
                 var pct = w.percent != null ? w.percent : 100;
-                return React.createElement('div', { key: w.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
-                  React.createElement('span', { className: 'text-black' }, new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ', React.createElement('b', null, w.florist)),
+                return React.createElement('div', { key: w.id, className: 'flex items-center justify-between ' + GLASS_ROW + ' px-3 py-2 text-sm' },
+                  React.createElement('span', { className: 'text-slate-700' }, new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ', React.createElement('b', null, w.florist)),
                   React.createElement('div', { className: 'flex items-center gap-2' },
-                    React.createElement('input', { type: 'number', value: pct, onChange: function (e) { setWorkDayPercent(w.florist, w.date, parseFloat(e.target.value) || 0); }, className: 'w-16 px-2 py-1 border-2 border-black rounded-md text-right text-sm outline-none focus:border-orange-500 text-black' }),
-                    React.createElement('span', { className: 'text-black/40 text-xs' }, '%'),
-                    React.createElement('span', { className: 'text-black font-medium w-20 text-right' }, formatMoney(baseRate * (pct / 100)) + ' ₽')
+                    React.createElement('input', { type: 'number', value: pct, onChange: function (e) { setWorkDayPercent(w.florist, w.date, parseFloat(e.target.value) || 0); }, className: 'w-16 px-2 py-1 ' + GLASS_INPUT + ' text-right text-sm' }),
+                    React.createElement('span', { className: 'text-slate-400 text-xs' }, '%'),
+                    React.createElement('span', { className: 'text-slate-700 font-medium w-20 text-right' }, formatMoney(baseRate * (pct / 100)) + ' ₽')
                   )
                 );
               })
             )
       ),
-      React.createElement('div', { className: 'bg-black rounded-xl p-4 mb-4 flex items-center justify-between' },
+      React.createElement('div', { className: 'bg-slate-900/60 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl p-4 mb-4 flex items-center justify-between' },
         React.createElement('span', { className: 'text-white font-medium' }, 'Итого зарплата за ' + monthNames[viewMonth]),
-        React.createElement('span', { className: 'text-orange-500 font-bold text-lg' }, formatMoney(grandTotal) + ' ₽')
+        React.createElement('span', { className: 'text-orange-300 font-bold text-lg' }, formatMoney(grandTotal) + ' ₽')
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
         React.createElement('div', { className: 'flex items-center justify-between mb-1' },
-          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Отключение отелей'),
-          React.createElement('button', { onClick: function () { setShowDisableForm(!showDisableForm); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showDisableForm ? 'Скрыть' : '+ Отключить')
+          React.createElement('h2', { className: 'font-semibold text-slate-800 flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Отключение отелей'),
+          React.createElement('button', { onClick: function () { setShowDisableForm(!showDisableForm); }, className: 'text-xs ' + GLASS_BTN_DARK + ' px-4 py-1.5 font-medium' }, showDisableForm ? 'Скрыть' : '+ Отключить')
         ),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Можно отключить отель целиком или только Замену/Рефреш отдельно, на любой срок — без ограничений, на пару недель или на конкретные даты.'),
+        React.createElement('p', { className: 'text-xs text-slate-400 mb-3' }, 'Можно отключить отель целиком или только Замену/Рефреш отдельно, на любой срок — без ограничений, на пару недель или на конкретные даты.'),
         showDisableForm && React.createElement('div', { className: 'space-y-2 mb-3' },
           React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
-            React.createElement('select', { value: newDisable.hotel, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { hotel: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+            React.createElement('select', { value: newDisable.hotel, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { hotel: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' },
               HOTELS.map(function (h) { return React.createElement('option', { key: h.name, value: h.name }, h.name); })
             ),
-            React.createElement('select', { value: newDisable.visitType, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { visitType: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+            React.createElement('select', { value: newDisable.visitType, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { visitType: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' },
               React.createElement('option', { value: '' }, 'Весь отель (Замена + Рефреш)'),
               React.createElement('option', { value: 'zamena' }, 'Только Замена'),
               React.createElement('option', { value: 'refresh' }, 'Только Рефреш')
@@ -1174,18 +1125,18 @@ function PayrollApp() {
           ),
           React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
             React.createElement('div', null,
-              React.createElement('label', { className: 'text-[10px] text-black/40' }, 'С даты'),
-              React.createElement('input', { type: 'date', value: newDisable.from, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { from: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' })
+              React.createElement('label', { className: 'text-[10px] text-slate-400' }, 'С даты'),
+              React.createElement('input', { type: 'date', value: newDisable.from, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { from: e.target.value })); }, className: 'w-full px-3 py-2 ' + GLASS_INPUT + ' text-sm' })
             ),
             React.createElement('div', null,
-              React.createElement('label', { className: 'text-[10px] text-black/40' }, 'По дату (пусто = без ограничений)'),
-              React.createElement('input', { type: 'date', value: newDisable.to, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { to: e.target.value })); }, className: 'w-full px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' })
+              React.createElement('label', { className: 'text-[10px] text-slate-400' }, 'По дату (пусто = без ограничений)'),
+              React.createElement('input', { type: 'date', value: newDisable.to, onChange: function (e) { setNewDisable(Object.assign({}, newDisable, { to: e.target.value })); }, className: 'w-full px-3 py-2 ' + GLASS_INPUT + ' text-sm' })
             )
           ),
           React.createElement('div', { className: 'flex gap-2 flex-wrap' },
-            React.createElement('button', { onClick: function () { setNewDisable(Object.assign({}, newDisable, { to: '' })); }, className: 'text-xs bg-orange-50 border border-orange-300 text-orange-700 px-3 py-1.5 rounded-full' }, 'Без ограничений'),
-            React.createElement('button', { onClick: function () { var d = new Date(newDisable.from); d.setDate(d.getDate() + 7); setNewDisable(Object.assign({}, newDisable, { to: d.toISOString().slice(0, 10) })); }, className: 'text-xs bg-orange-50 border border-orange-300 text-orange-700 px-3 py-1.5 rounded-full' }, 'На 1 неделю'),
-            React.createElement('button', { onClick: function () { var d = new Date(newDisable.from); d.setDate(d.getDate() + 14); setNewDisable(Object.assign({}, newDisable, { to: d.toISOString().slice(0, 10) })); }, className: 'text-xs bg-orange-50 border border-orange-300 text-orange-700 px-3 py-1.5 rounded-full' }, 'На 2 недели')
+            React.createElement('button', { onClick: function () { setNewDisable(Object.assign({}, newDisable, { to: '' })); }, className: 'text-xs bg-white/50 backdrop-blur border border-white/70 text-orange-600 px-3 py-1.5 rounded-full hover:bg-white/70 transition-colors' }, 'Без ограничений'),
+            React.createElement('button', { onClick: function () { var d = new Date(newDisable.from); d.setDate(d.getDate() + 7); setNewDisable(Object.assign({}, newDisable, { to: d.toISOString().slice(0, 10) })); }, className: 'text-xs bg-white/50 backdrop-blur border border-white/70 text-orange-600 px-3 py-1.5 rounded-full hover:bg-white/70 transition-colors' }, 'На 1 неделю'),
+            React.createElement('button', { onClick: function () { var d = new Date(newDisable.from); d.setDate(d.getDate() + 14); setNewDisable(Object.assign({}, newDisable, { to: d.toISOString().slice(0, 10) })); }, className: 'text-xs bg-white/50 backdrop-blur border border-white/70 text-orange-600 px-3 py-1.5 rounded-full hover:bg-white/70 transition-colors' }, 'На 2 недели')
           ),
           React.createElement('button', {
             onClick: function () {
@@ -1193,39 +1144,39 @@ function PayrollApp() {
               setNewDisable({ hotel: HOTELS[0].name, visitType: '', from: todayISO(), to: '' });
               setShowDisableForm(false);
             },
-            className: 'w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-sm font-medium'
+            className: 'w-full ' + GLASS_BTN_ORANGE + ' py-2 text-sm font-medium'
           }, 'Отключить')
         ),
         React.createElement('div', { className: 'space-y-1.5' },
           hotelDisables.map(function (r) {
-            return React.createElement('div', { key: r.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
-              React.createElement('span', { className: 'text-black' },
+            return React.createElement('div', { key: r.id, className: 'flex items-center justify-between ' + GLASS_ROW + ' px-3 py-2 text-sm' },
+              React.createElement('span', { className: 'text-slate-700' },
                 React.createElement('b', null, r.hotel), ' — ' + (r.visitType === 'zamena' ? 'Замена' : r.visitType === 'refresh' ? 'Рефреш' : 'весь отель') + ' · ' +
                 (r.from ? new Date(r.from).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '…') + ' – ' +
                 (r.to ? new Date(r.to).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : 'без ограничений')
               ),
-              React.createElement('button', { onClick: function () { removeHotelDisable(r.id); }, className: 'text-black/30 hover:text-orange-500 shrink-0 ml-2' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
+              React.createElement('button', { onClick: function () { removeHotelDisable(r.id); }, className: 'text-slate-300 hover:text-orange-500 shrink-0 ml-2' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
             );
           }),
-          hotelDisables.length === 0 && React.createElement('div', { className: 'text-sm text-black/40' }, 'Нет отключённых отелей')
+          hotelDisables.length === 0 && React.createElement('div', { className: 'text-sm text-slate-400' }, 'Нет отключённых отелей')
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
         React.createElement('div', { className: 'flex items-center justify-between mb-1' },
-          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Рокировка расписания'),
-          React.createElement('button', { onClick: function () { setShowOverrideForm(!showOverrideForm); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showOverrideForm ? 'Скрыть' : '+ Добавить')
+          React.createElement('h2', { className: 'font-semibold text-slate-800 flex items-center gap-2' }, React.createElement(Calendar, { className: 'w-4 h-4 text-orange-500' }), 'Рокировка расписания'),
+          React.createElement('button', { onClick: function () { setShowOverrideForm(!showOverrideForm); }, className: 'text-xs ' + GLASS_BTN_DARK + ' px-4 py-1.5 font-medium' }, showOverrideForm ? 'Скрыть' : '+ Добавить')
         ),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-3' }, 'Перенос дня недели для отеля с выбранного числа и до конца ' + monthNames[viewMonth] + '. Дни до этого числа не меняются. В следующем месяце расписание само возвращается к обычному.'),
+        React.createElement('p', { className: 'text-xs text-slate-400 mb-3' }, 'Перенос дня недели для отеля с выбранного числа и до конца ' + monthNames[viewMonth] + '. Дни до этого числа не меняются. В следующем месяце расписание само возвращается к обычному.'),
         showOverrideForm && React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2 mb-3' },
-          React.createElement('select', { value: newOverride.hotel, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { hotel: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black col-span-2 md:col-span-1' },
+          React.createElement('select', { value: newOverride.hotel, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { hotel: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm col-span-2 md:col-span-1' },
             HOTELS.map(function (h) { return React.createElement('option', { key: h.name, value: h.name }, h.name); })
           ),
-          React.createElement('input', { type: 'number', min: 1, max: 31, value: newOverride.fromDay, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { fromDay: parseInt(e.target.value) || 1 })); }, placeholder: 'С числа', className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
-          React.createElement('select', { value: newOverride.zamenaDay, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { zamenaDay: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+          React.createElement('input', { type: 'number', min: 1, max: 31, value: newOverride.fromDay, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { fromDay: parseInt(e.target.value) || 1 })); }, placeholder: 'С числа', className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' }),
+          React.createElement('select', { value: newOverride.zamenaDay, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { zamenaDay: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' },
             React.createElement('option', { value: '' }, 'Замена: не менять'),
             WEEKDAYS.map(function (w, i) { return React.createElement('option', { key: w, value: i }, 'Замена → ' + w); })
           ),
-          React.createElement('select', { value: newOverride.refreshDay, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { refreshDay: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+          React.createElement('select', { value: newOverride.refreshDay, onChange: function (e) { setNewOverride(Object.assign({}, newOverride, { refreshDay: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' },
             React.createElement('option', { value: '' }, 'Рефреш: не менять'),
             WEEKDAYS.map(function (w, i) { return React.createElement('option', { key: w, value: i }, 'Рефреш → ' + w); })
           ),
@@ -1239,79 +1190,82 @@ function PayrollApp() {
               setNewOverride({ hotel: HOTELS[0].name, fromDay: 16, zamenaDay: '', refreshDay: '' });
               setShowOverrideForm(false);
             },
-            className: 'bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium col-span-2 md:col-span-4'
+            className: GLASS_BTN_ORANGE + ' px-4 py-2 text-sm font-medium col-span-2 md:col-span-4'
           }, 'Применить рокировку')
         ),
         React.createElement('div', { className: 'space-y-1.5' },
           scheduleOverrides.filter(function (o) { return o.year === viewYear && o.month === viewMonth; }).map(function (o) {
-            return React.createElement('div', { key: o.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
-              React.createElement('span', { className: 'text-black' },
+            return React.createElement('div', { key: o.id, className: 'flex items-center justify-between ' + GLASS_ROW + ' px-3 py-2 text-sm' },
+              React.createElement('span', { className: 'text-slate-700' },
                 React.createElement('b', null, o.hotel), ' — с ' + o.fromDay + ' числа: ',
                 o.zamenaDay != null ? ('Замена → ' + WEEKDAYS[o.zamenaDay]) : '',
                 (o.zamenaDay != null && o.refreshDay != null) ? ', ' : '',
                 o.refreshDay != null ? ('Рефреш → ' + WEEKDAYS[o.refreshDay]) : ''
               ),
-              React.createElement('button', { onClick: function () { removeScheduleOverride(o.id); }, className: 'text-black/30 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
+              React.createElement('button', { onClick: function () { removeScheduleOverride(o.id); }, className: 'text-slate-300 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
             );
           }),
-          scheduleOverrides.filter(function (o) { return o.year === viewYear && o.month === viewMonth; }).length === 0 && React.createElement('div', { className: 'text-sm text-black/40' }, 'Нет активных рокировок в этом месяце')
+          scheduleOverrides.filter(function (o) { return o.year === viewYear && o.month === viewMonth; }).length === 0 && React.createElement('div', { className: 'text-sm text-slate-400' }, 'Нет активных рокировок в этом месяце')
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
         React.createElement('div', { className: 'flex items-center justify-between mb-3' },
-          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Cosmos Nevsky — открыть дату для флористов'),
-          React.createElement('button', { onClick: function () { setShowManualSlotForm(!showManualSlotForm); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showManualSlotForm ? 'Скрыть' : '+ Открыть слот')
+          React.createElement('h2', { className: 'font-semibold text-slate-800 flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Ручные слоты — открыть дату для флористов'),
+          React.createElement('button', { onClick: function () { setShowManualSlotForm(!showManualSlotForm); }, className: 'text-xs ' + GLASS_BTN_DARK + ' px-4 py-1.5 font-medium' }, showManualSlotForm ? 'Скрыть' : '+ Открыть слот')
         ),
-        React.createElement('p', { className: 'text-xs text-black/40 mb-2' }, 'Отель теперь на фиксированном графике (пятница) — ручные слоты можно использовать для дополнительных дат вне обычного расписания.'),
+        React.createElement('p', { className: 'text-xs text-slate-400 mb-2' }, 'Открывает дополнительную дату выезда вне обычного графика. Слоты на первую из выбранных дат добавляются по факту открытия.'),
         showManualSlotForm && React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2 mb-3' },
-          React.createElement('input', { type: 'date', value: newManualSlot.date, onChange: function (e) { setNewManualSlot(Object.assign({}, newManualSlot, { date: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
-          React.createElement('select', { value: newManualSlot.visitType, onChange: function (e) { setNewManualSlot(Object.assign({}, newManualSlot, { visitType: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+          React.createElement('select', { value: newManualSlot.hotel, onChange: function (e) { setNewManualSlot(Object.assign({}, newManualSlot, { hotel: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm col-span-2 md:col-span-1' },
+            HOTELS.map(function (h) { return React.createElement('option', { key: h.name, value: h.name }, h.name); })
+          ),
+          React.createElement('input', { type: 'date', value: newManualSlot.date, onChange: function (e) { setNewManualSlot(Object.assign({}, newManualSlot, { date: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' }),
+          React.createElement('select', { value: newManualSlot.visitType, onChange: function (e) { setNewManualSlot(Object.assign({}, newManualSlot, { visitType: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' },
             React.createElement('option', { value: 'zamena' }, 'Замена'),
             React.createElement('option', { value: 'refresh' }, 'Рефреш')
           ),
-          React.createElement('button', { onClick: addManualSlot, className: 'bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium col-span-2 md:col-span-2' }, 'Открыть слот')
+          React.createElement('button', { onClick: addManualSlot, className: GLASS_BTN_ORANGE + ' px-4 py-2 text-sm font-medium col-span-2 md:col-span-1' }, 'Открыть слот')
         ),
         React.createElement('div', { className: 'flex flex-wrap gap-2' },
           manualSlots.filter(function (ms) { var d = new Date(ms.date); return d.getMonth() === viewMonth && d.getFullYear() === viewYear; }).map(function (ms) {
-            return React.createElement('div', { key: ms.id, className: 'flex items-center gap-2 bg-orange-50 text-orange-700 text-xs px-3 py-1.5 rounded-full border border-orange-300' },
-              new Date(ms.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ' + (ms.visitType === 'zamena' ? 'Замена' : 'Рефреш'),
-              React.createElement('button', { onClick: function () { setManualSlots(manualSlots.filter(function (x) { return x.id !== ms.id; })); } }, React.createElement(X, { className: 'w-3 h-3' }))
+            return React.createElement('div', { key: ms.id, className: 'flex items-center gap-2 bg-white/50 backdrop-blur text-orange-700 text-xs px-3 py-1.5 rounded-full border border-orange-200 shadow-sm' },
+              new Date(ms.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ' + ms.hotel + ' · ' + (ms.visitType === 'zamena' ? 'Замена' : 'Рефреш'),
+              React.createElement('button', { onClick: function () { setManualSlots(manualSlots.filter(function (x) { return x.id !== ms.id; })); }, className: 'text-orange-300 hover:text-orange-600' }, React.createElement(X, { className: 'w-3 h-3' }))
             );
           })
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mb-4' },
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mb-4' },
         React.createElement('div', { className: 'flex items-center justify-between mb-3' },
-          React.createElement('h2', { className: 'font-semibold text-black flex items-center gap-2' }, React.createElement(Sparkles, { className: 'w-4 h-4 text-orange-500' }), 'Разовые оформления'),
-          React.createElement('button', { onClick: function () { setShowOnetimeForm(!showOnetimeForm); }, className: 'text-xs bg-black hover:bg-black/85 text-white px-3 py-1.5 rounded-full font-medium' }, showOnetimeForm ? 'Скрыть' : '+ Добавить')
+          React.createElement('h2', { className: 'font-semibold text-slate-800 flex items-center gap-2' }, React.createElement(Sparkles, { className: 'w-4 h-4 text-orange-500' }), 'Разовые оформления'),
+          React.createElement('button', { onClick: function () { setShowOnetimeForm(!showOnetimeForm); }, className: 'text-xs ' + GLASS_BTN_DARK + ' px-4 py-1.5 font-medium' }, showOnetimeForm ? 'Скрыть' : '+ Добавить')
         ),
         showOnetimeForm && React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2 mb-3' },
-          React.createElement('input', { type: 'date', value: newOnetime.date, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { date: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
-          React.createElement('select', { value: newOnetime.florist, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { florist: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' },
+          React.createElement('input', { type: 'date', value: newOnetime.date, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { date: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' }),
+          React.createElement('select', { value: newOnetime.florist, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { florist: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' },
             florists.map(function (f) { return React.createElement('option', { key: f, value: f }, f); })
           ),
-          React.createElement('input', { type: 'text', placeholder: 'Проект', value: newOnetime.projectName, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { projectName: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
-          React.createElement('input', { type: 'number', placeholder: 'Ставка, ₽', value: newOnetime.rate, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { rate: e.target.value })); }, className: 'px-3 py-2 border-2 border-black rounded-lg outline-none focus:border-orange-500 text-sm text-black' }),
-          React.createElement('button', { onClick: addOnetime, className: 'bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium col-span-2 md:col-span-4' }, 'Добавить')
+          React.createElement('input', { type: 'text', placeholder: 'Проект', value: newOnetime.projectName, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { projectName: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' }),
+          React.createElement('input', { type: 'number', placeholder: 'Ставка, ₽', value: newOnetime.rate, onChange: function (e) { setNewOnetime(Object.assign({}, newOnetime, { rate: e.target.value })); }, className: 'px-3 py-2 ' + GLASS_INPUT + ' text-sm' }),
+          React.createElement('button', { onClick: addOnetime, className: GLASS_BTN_ORANGE + ' px-4 py-2 text-sm font-medium col-span-2 md:col-span-4' }, 'Добавить')
         ),
         React.createElement('div', { className: 'space-y-1.5' },
           monthOnetimes.map(function (o) {
-            return React.createElement('div', { key: o.id, className: 'flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2 text-sm' },
-              React.createElement('span', { className: 'text-black' }, new Date(o.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ', React.createElement('b', null, o.florist), ' · ' + (o.projectName || '—')),
+            return React.createElement('div', { key: o.id, className: 'flex items-center justify-between ' + GLASS_ROW + ' px-3 py-2 text-sm' },
+              React.createElement('span', { className: 'text-slate-700' }, new Date(o.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' · ', React.createElement('b', null, o.florist), ' · ' + (o.projectName || '—')),
               React.createElement('div', { className: 'flex items-center gap-3' },
-                React.createElement('span', { className: 'font-medium text-black' }, formatMoney(parseFloat(o.rate) || 0) + ' ₽'),
-                React.createElement('button', { onClick: function () { removeOnetime(o.id); }, className: 'text-black/30 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
+                React.createElement('span', { className: 'font-medium text-slate-700' }, formatMoney(parseFloat(o.rate) || 0) + ' ₽'),
+                React.createElement('button', { onClick: function () { removeOnetime(o.id); }, className: 'text-slate-300 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' }))
               )
             );
           })
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black overflow-hidden' },
-        React.createElement('div', { className: 'p-4 border-b-2 border-black' }, React.createElement('h2', { className: 'font-semibold text-black' }, 'Все записи на выезды')),
+      React.createElement('div', { className: GLASS_CARD + ' overflow-hidden' },
+        React.createElement('div', { className: 'p-4 border-b border-white/60' }, React.createElement('h2', { className: 'font-semibold text-slate-800' }, 'Все записи на выезды')),
         React.createElement('div', { className: 'overflow-x-auto' },
           React.createElement('table', { className: 'w-full text-sm' },
             React.createElement('thead', null,
-              React.createElement('tr', { className: 'bg-orange-50 text-left text-black/60' },
+              React.createElement('tr', { className: 'bg-white/40 backdrop-blur text-left text-slate-400' },
                 React.createElement('th', { className: 'px-4 py-2' }, 'Дата'),
                 React.createElement('th', { className: 'px-4 py-2' }, 'Флорист'),
                 React.createElement('th', { className: 'px-4 py-2' }, 'Отель'),
@@ -1321,32 +1275,32 @@ function PayrollApp() {
               )
             ),
             React.createElement('tbody', null,
-              monthBookings.length === 0 && React.createElement('tr', null, React.createElement('td', { colSpan: 6, className: 'text-center text-black/40 py-8' }, 'Нет записей')),
+              monthBookings.length === 0 && React.createElement('tr', null, React.createElement('td', { colSpan: 6, className: 'text-center text-slate-400 py-8' }, 'Нет записей')),
               monthBookings.filter(function (b) { return filterFlorist === 'all' || b.florist === filterFlorist; }).sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (b) {
-                return React.createElement('tr', { key: b.id, className: 'border-t border-black/10 hover:bg-orange-50' },
-                  React.createElement('td', { className: 'px-4 py-2 text-black/70' }, new Date(b.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })),
-                  React.createElement('td', { className: 'px-4 py-2 font-medium text-black' }, b.florist),
-                  React.createElement('td', { className: 'px-4 py-2 text-black/70' }, b.hotel),
-                  React.createElement('td', { className: 'px-4 py-2' }, React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700' }, b.visitType === 'zamena' ? 'Замена' : 'Рефреш')),
-                  React.createElement('td', { className: 'px-4 py-2 text-right font-medium text-black' }, formatMoney(getRate(b.hotel, b.visitType)) + ' ₽'),
-                  React.createElement('td', { className: 'px-4 py-2' }, React.createElement('button', { onClick: function () { removeBooking(b.id); }, className: 'text-black/30 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' })))
+                return React.createElement('tr', { key: b.id, className: 'border-t border-white/60 hover:bg-white/50' },
+                  React.createElement('td', { className: 'px-4 py-2 text-slate-500' }, new Date(b.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })),
+                  React.createElement('td', { className: 'px-4 py-2 font-medium text-slate-700' }, b.florist),
+                  React.createElement('td', { className: 'px-4 py-2 text-slate-500' }, b.hotel),
+                  React.createElement('td', { className: 'px-4 py-2' }, React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full bg-orange-200/60 text-orange-800' }, b.visitType === 'zamena' ? 'Замена' : 'Рефреш')),
+                  React.createElement('td', { className: 'px-4 py-2 text-right font-medium text-slate-700' }, formatMoney(getRate(b.hotel, b.visitType)) + ' ₽'),
+                  React.createElement('td', { className: 'px-4 py-2' }, React.createElement('button', { onClick: function () { removeBooking(b.id); }, className: 'text-slate-300 hover:text-orange-500' }, React.createElement(Trash2, { className: 'w-4 h-4' })))
                 );
               })
             )
           )
         )
       ),
-      React.createElement('div', { className: 'bg-white rounded-xl border-2 border-black p-4 mt-4' },
-        React.createElement('h2', { className: 'font-semibold text-black mb-3 flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Тарифы и график по отелям'),
+      React.createElement('div', { className: GLASS_CARD + ' p-4 mt-4' },
+        React.createElement('h2', { className: 'font-semibold text-slate-800 mb-3 flex items-center gap-2' }, React.createElement(Building2, { className: 'w-4 h-4 text-orange-500' }), 'Тарифы и график по отелям'),
         React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-2 text-sm' },
           HOTELS.map(function (h) {
-            return React.createElement('div', { key: h.name, className: 'bg-orange-50 rounded-lg px-3 py-2' },
-              React.createElement('div', { className: 'text-black font-medium' }, h.name),
-              React.createElement('div', { className: 'text-black/50 text-xs mt-0.5' },
-                'Замена: ', React.createElement('b', { className: 'text-black' }, formatMoney(h.zamena) + '₽'),
+            return React.createElement('div', { key: h.name, className: GLASS_ROW + ' px-3 py-2' },
+              React.createElement('div', { className: 'text-slate-700 font-medium' }, h.name),
+              React.createElement('div', { className: 'text-slate-400 text-xs mt-0.5' },
+                'Замена: ', React.createElement('b', { className: 'text-slate-700' }, formatMoney(h.zamena) + '₽'),
                 h.zamenaDay !== null && React.createElement('span', null, ' (' + WEEKDAYS[h.zamenaDay] + ')'),
-                h.refresh && React.createElement(React.Fragment, null, ' · Рефреш: ', React.createElement('b', { className: 'text-black' }, formatMoney(h.refresh) + '₽'), h.refreshDay !== null && React.createElement('span', null, ' (' + WEEKDAYS[h.refreshDay] + ')')),
-                h.manual && React.createElement('span', { className: 'text-orange-600' }, ' · даты вручную'),
+                h.refresh && React.createElement(React.Fragment, null, ' · Рефреш: ', React.createElement('b', { className: 'text-slate-700' }, formatMoney(h.refresh) + '₽'), h.refreshDay !== null && React.createElement('span', null, ' (' + WEEKDAYS[h.refreshDay] + ')')),
+                h.manual && React.createElement('span', { className: 'text-orange-500' }, ' · даты вручную'),
                 React.createElement('span', null, ' · до ' + h.maxPerSlot + ' чел.')
               )
             );
@@ -1356,10 +1310,8 @@ function PayrollApp() {
     )
   );
 }
-
 var rootEl = ReactDOM.createRoot(document.getElementById('root'));
 rootEl.render(React.createElement(PayrollApp));
 </script>
-
 </body>
 </html>
